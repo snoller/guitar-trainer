@@ -1629,61 +1629,70 @@ function noteNameToMidi(name) {
   return map[match[1]] + (parseInt(match[2]) + 1) * 12;
 }
 
+// Note format: 'C4' (quarter default) or 'C4/2' (half), 'C4/8' (eighth), etc.
+// Duration values: 1=whole, 2=half, 4=quarter, 8=eighth, 16=sixteenth
 const SONGS = [
   {
     title: 'Alle meine Entchen',
     difficulty: 'Sehr leicht',
     icon: '🐤',
-    // C D E F G G | A A A A G | A A A A G | F F F F E E | D D D D C
-    notes: 'C4 D4 E4 F4 G4 G4 A4 A4 A4 A4 G4 A4 A4 A4 A4 G4 F4 F4 F4 F4 E4 E4 D4 D4 D4 D4 C4'.split(' ')
+    notes: 'C4 D4 E4 F4 G4/2 G4/2 A4 A4 A4 A4 G4/1 A4 A4 A4 A4 G4/1 F4 F4 F4 F4 E4/2 E4/2 D4 D4 D4 D4 C4/1'.split(' ')
   },
   {
     title: 'Hänschen klein',
     difficulty: 'Sehr leicht',
     icon: '🎒',
-    notes: 'G4 E4 E4 F4 D4 D4 C4 D4 E4 F4 G4 G4 G4 G4 E4 E4 F4 D4 D4 C4 E4 G4 G4 C4'.split(' ')
+    notes: 'G4 E4 E4/2 F4 D4 D4/2 C4 D4 E4 F4 G4 G4 G4/2 G4 E4 E4/2 F4 D4 D4/2 C4 E4 G4/2 C4/1'.split(' ')
   },
   {
     title: 'Ode an die Freude',
     difficulty: 'Leicht',
     icon: '🎵',
-    notes: 'E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4 D4 D4 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4 C4 C4'.split(' ')
+    notes: 'E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4/2 D4/2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4/2 C4/2'.split(' ')
   },
   {
     title: 'Smoke on the Water',
     difficulty: 'Leicht',
     icon: '🔥',
-    notes: 'G3 Bb3 C4 G3 Bb3 Db4 C4 G3 Bb3 C4 Bb3 G3'.split(' ')
+    notes: 'G3/8 Bb3/8 C4/2 G3/8 Bb3/8 Db4/8 C4/2 G3/8 Bb3/8 C4 Bb3/8 G3/2'.split(' ')
   },
   {
     title: 'Seven Nation Army',
     difficulty: 'Leicht',
     icon: '⚡',
-    notes: 'E3 E3 G3 E3 D3 C3 B2 E3 E3 G3 E3 D3 C3 D3 C3 B2'.split(' ')
+    notes: 'E3 E3/8 G3 E3/8 D3/8 C3 B2/1 E3 E3/8 G3 E3/8 D3 C3/8 D3/8 C3/8 B2/1'.split(' ')
   },
   {
     title: 'Come As You Are',
     difficulty: 'Mittel',
     icon: '🎸',
-    notes: 'E3 F#3 G#3 A3 G#3 F#3 E3 F#3 G#3 A3 G#3 F#3 E3 F#3 G#3 A3 G#3 A3 A3 A3'.split(' ').map(n => n.replace('#', '#'))
+    notes: 'E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 A3 A3 A3/2'.split(' ')
   },
   {
     title: 'Für Elise (Anfang)',
     difficulty: 'Mittel',
     icon: '🎹',
-    notes: 'E5 D#5 E5 D#5 E5 B4 D5 C5 A4 C4 E4 A4 B4 E4 G#4 B4 C5'.split(' ')
+    notes: 'E5/8 D#5/8 E5/8 D#5/8 E5/8 B4/8 D5/8 C5/8 A4 C4/8 E4/8 A4/8 B4 E4/8 G#4/8 B4/8 C5/2'.split(' ')
   },
   {
     title: 'Bruder Jakob',
     difficulty: 'Leicht',
     icon: '🔔',
-    notes: 'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4 E4 F4 G4 G4 A4 G4 F4 E4 C4 G4 A4 G4 F4 E4 C4 C4 G3 C4 C4 G3 C4'.split(' ')
+    notes: 'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4/2 E4 F4 G4/2 G4/8 A4/8 G4/8 F4/8 E4 C4 G4/8 A4/8 G4/8 F4/8 E4 C4 C4 G3 C4/2 C4 G3 C4/2'.split(' ')
   },
 ];
 
-// Convert note names to MIDI
+// Parse note format: extract pitch, midi, and duration
 SONGS.forEach(song => {
-  song.midi = song.notes.map(noteNameToMidi);
+  const parsed = song.notes.map(s => {
+    const slashIdx = s.indexOf('/');
+    const pitch = slashIdx >= 0 ? s.substring(0, slashIdx) : s;
+    const dur = slashIdx >= 0 ? parseInt(s.substring(slashIdx + 1)) : 4;
+    return { pitch, dur };
+  });
+  song.midi = parsed.map(p => noteNameToMidi(p.pitch));
+  song.durations = parsed.map(p => p.dur);
+  song.pitchNames = parsed.map(p => p.pitch);
 });
 
 const songState = {
@@ -1702,7 +1711,7 @@ function buildSongSelect() {
       <span class="song-icon">${song.icon}</span>
       <div class="song-info">
         <div class="song-title">${song.title}</div>
-        <div class="song-difficulty">${song.difficulty} · ${song.notes.length} Noten</div>
+        <div class="song-difficulty">${song.difficulty} · ${song.midi.length} Noten</div>
       </div>
     </button>
   `).join('');
@@ -1735,8 +1744,8 @@ function selectSong(idx) {
 function renderSongNotes() {
   const song = SONGS[songState.currentSong];
   const container = document.getElementById('songStaffDisplay');
-  const notes = song.midi;
-  const n = notes.length;
+  const n = song.midi.length;
+  const durations = song.durations;
 
   const DIATONIC = [0,0,1,1,2,3,3,4,4,5,5,6];
   const IS_SHARP = [0,1,0,1,0,0,1,0,1,0,1,0];
@@ -1744,105 +1753,204 @@ function renderSongNotes() {
   const HS = LS / 2;
   const W = 500;
   const clefW = 36;
-  const noteSpacing = 34;
   const mx = 10;
+  const stemLen = 24;
   const usable = W - clefW - mx * 2;
-  const perLine = Math.floor(usable / noteSpacing);
-  const numLines = Math.ceil(n / perLine);
-  const sysHeight = 10 * LS; // height per staff system
-  const H = numLines * sysHeight + 8;
 
+  // Duration-based spacing multiplier
+  const durSpace = d => d === 1 ? 2.6 : d === 2 ? 1.8 : d === 4 ? 1.2 : d === 8 ? 0.75 : 0.55;
+  const baseUnit = 30;
+
+  // Compute note info
+  const allNotes = [];
+  for (let i = 0; i < n; i++) {
+    const midi = song.midi[i];
+    const dur = durations[i];
+    const dm = midi + 12;
+    const nio = dm % 12;
+    const oct = Math.floor(dm / 12) - 1;
+    const pos = (oct - 4) * 7 + DIATONIC[nio] - 2;
+    allNotes.push({ midi, dur, pos, sharp: IS_SHARP[nio], idx: i });
+  }
+
+  // Split into lines by width
+  const lines = [];
+  let ls = 0;
+  while (ls < n) {
+    let lw = 0, le = ls;
+    while (le < n) {
+      const w = durSpace(durations[le]) * baseUnit;
+      if (lw + w > usable && le > ls) break;
+      lw += w;
+      le++;
+    }
+    lines.push({ start: ls, end: le, width: lw });
+    ls = le;
+  }
+
+  const sysH = 11 * LS;
+  const H = lines.length * sysH + 8;
   let svg = '';
 
-  for (let line = 0; line < numLines; line++) {
-    const si = line * perLine;
-    const ei = Math.min(si + perLine, n);
-    const sTop = line * sysHeight + 18;
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    const sTop = li * sysH + 20;
     const sBot = sTop + 4 * LS;
+    const scale = usable / line.width;
 
     // Staff lines
     for (let j = 0; j < 5; j++) {
       const y = sTop + j * LS;
       svg += `<line x1="${mx}" y1="${y}" x2="${W - mx}" y2="${y}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
     }
-
     // Clef
     svg += `<text x="${mx + 13}" y="${sTop + 2 * LS + 1}" font-size="30" fill="var(--text-dim)" text-anchor="middle" dominant-baseline="central" font-family="serif">𝄞</text>`;
     svg += `<text x="${mx + 13}" y="${sBot + 8}" font-size="7" fill="var(--text-muted)" text-anchor="middle">8</text>`;
 
-    // Notes
-    for (let i = si; i < ei; i++) {
-      const midi = notes[i];
-      const dm = midi + 12;
-      const nio = dm % 12;
-      const oct = Math.floor(dm / 12) - 1;
-      const pos = (oct - 4) * 7 + DIATONIC[nio] - 2;
-      const sharp = IS_SHARP[nio];
-      const noteIdx = i - si;
-      const nx = clefW + mx + noteIdx * noteSpacing + noteSpacing / 2;
-      const ny = sBot - pos * HS;
+    // Compute x positions
+    let xAcc = 0;
+    const ln = []; // line notes with positions
+    for (let i = line.start; i < line.end; i++) {
+      const ni = allNotes[i];
+      const w = durSpace(ni.dur) * baseUnit;
+      const nx = clefW + mx + (xAcc + w / 2) * scale;
+      const ny = sBot - ni.pos * HS;
+      const stemUp = ni.pos < 4;
+      const sx = stemUp ? nx + 4.3 : nx - 4.3;
+      const stemEnd = stemUp ? ny - stemLen : ny + stemLen;
+      ln.push({ ...ni, nx, ny, stemUp, sx, stemEnd });
+      xAcc += w;
+    }
 
-      // Colors
-      const played = i < songState.currentIndex;
-      const current = i === songState.currentIndex;
+    // Find beam groups (consecutive eighth or sixteenth notes)
+    const beamGroups = [];
+    let bg = [];
+    for (const note of ln) {
+      if (note.dur >= 8) { bg.push(note); }
+      else { if (bg.length >= 2) beamGroups.push(bg); bg = []; }
+    }
+    if (bg.length >= 2) beamGroups.push(bg);
+
+    // Compute beam positions
+    const beamedSet = new Set();
+    const beamData = new Map(); // idx -> { stemUp, beamY }
+    for (const group of beamGroups) {
+      const avgPos = group.reduce((s, nt) => s + nt.pos, 0) / group.length;
+      const bUp = avgPos < 4;
+      const ends = group.map(nt => bUp ? nt.ny - stemLen : nt.ny + stemLen);
+      const beamY = bUp ? Math.min(...ends) - 2 : Math.max(...ends) + 2;
+      for (const nt of group) {
+        beamedSet.add(nt.idx);
+        beamData.set(nt.idx, { stemUp: bUp, beamY, sx: bUp ? nt.nx + 4.3 : nt.nx - 4.3 });
+      }
+    }
+
+    // Draw notes
+    for (const nt of ln) {
+      const { nx, ny, pos, sharp, dur, idx } = nt;
+      const played = idx < songState.currentIndex;
+      const current = idx === songState.currentIndex;
       const color = played ? 'var(--green)' : current ? 'var(--amber-bright)' : 'var(--text-muted)';
-      const opacity = current ? 1 : played ? 0.9 : 0.4;
+      const op = current ? 1 : played ? 0.9 : 0.4;
+      const bd = beamData.get(idx);
+      const stemUp = bd ? bd.stemUp : nt.stemUp;
+      const sx = bd ? bd.sx : nt.sx;
 
       // Ledger lines
       for (let p = -2; p >= pos; p -= 2) {
-        const ly = sBot - p * HS;
-        svg += `<line x1="${nx - 8}" y1="${ly}" x2="${nx + 8}" y2="${ly}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
+        svg += `<line x1="${nx-8}" y1="${sBot - p * HS}" x2="${nx+8}" y2="${sBot - p * HS}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
       }
       for (let p = 10; p <= pos; p += 2) {
-        const ly = sBot - p * HS;
-        svg += `<line x1="${nx - 8}" y1="${ly}" x2="${nx + 8}" y2="${ly}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
+        svg += `<line x1="${nx-8}" y1="${sBot - p * HS}" x2="${nx+8}" y2="${sBot - p * HS}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
       }
 
       // Sharp
       if (sharp) {
-        svg += `<text x="${nx - 10}" y="${ny + 1}" font-size="10" fill="${color}" opacity="${opacity}" text-anchor="middle" dominant-baseline="central">♯</text>`;
+        svg += `<text x="${nx-10}" y="${ny+1}" font-size="10" fill="${color}" opacity="${op}" text-anchor="middle" dominant-baseline="central">♯</text>`;
       }
 
-      // Current note glow
+      // Current glow
       if (current) {
-        svg += `<ellipse cx="${nx}" cy="${ny}" rx="12" ry="10" fill="var(--amber-glow)" opacity="0.6"/>`;
+        svg += `<ellipse cx="${nx}" cy="${ny}" rx="13" ry="10" fill="var(--amber-glow)" opacity="0.5"/>`;
       }
 
       // Note head
-      svg += `<ellipse cx="${nx}" cy="${ny}" rx="4.8" ry="3.5" fill="${color}" opacity="${opacity}" transform="rotate(-15,${nx},${ny})"/>`;
+      if (dur <= 2) {
+        // Hollow head (whole or half)
+        const rx = dur === 1 ? 5.8 : 5;
+        const ry = dur === 1 ? 4.2 : 3.5;
+        svg += `<ellipse cx="${nx}" cy="${ny}" rx="${rx}" ry="${ry}" fill="var(--bg-card)" stroke="${color}" stroke-width="1.5" opacity="${op}" transform="rotate(-15,${nx},${ny})"/>`;
+      } else {
+        // Filled head
+        svg += `<ellipse cx="${nx}" cy="${ny}" rx="4.8" ry="3.5" fill="${color}" opacity="${op}" transform="rotate(-15,${nx},${ny})"/>`;
+      }
 
-      // Stem
-      const stemUp = pos < 4;
-      const sx = stemUp ? nx + 4.3 : nx - 4.3;
-      const stemLen = 22;
-      const sy2 = stemUp ? ny - stemLen : ny + stemLen;
-      svg += `<line x1="${sx}" y1="${ny}" x2="${sx}" y2="${sy2}" stroke="${color}" stroke-width="1" opacity="${opacity * 0.8}"/>`;
+      // Stem (not for whole notes)
+      if (dur > 1) {
+        const sy2 = bd ? bd.beamY : (stemUp ? ny - stemLen : ny + stemLen);
+        svg += `<line x1="${sx}" y1="${ny}" x2="${sx}" y2="${sy2}" stroke="${color}" stroke-width="1.1" opacity="${op * 0.8}"/>`;
+
+        // Flag for isolated eighth/sixteenth (not beamed)
+        if (dur >= 8 && !beamedSet.has(idx)) {
+          const numFlags = dur >= 16 ? 2 : 1;
+          for (let f = 0; f < numFlags; f++) {
+            const fy = sy2 + f * 7 * (stemUp ? 1 : -1);
+            if (stemUp) {
+              svg += `<path d="M${sx},${fy} c 1,3 8,7 5,14" stroke="${color}" fill="none" stroke-width="1.2" opacity="${op}"/>`;
+            } else {
+              svg += `<path d="M${sx},${fy} c 1,-3 8,-7 5,-14" stroke="${color}" fill="none" stroke-width="1.2" opacity="${op}"/>`;
+            }
+          }
+        }
+      }
+    }
+
+    // Draw beams
+    for (const group of beamGroups) {
+      const bd0 = beamData.get(group[0].idx);
+      const beamY = bd0.beamY;
+      const bUp = bd0.stemUp;
+      const numBeams = group[0].dur >= 16 ? 2 : 1;
+
+      for (let lvl = 0; lvl < numBeams; lvl++) {
+        const by = beamY + lvl * 5 * (bUp ? 1 : -1);
+        for (let g = 0; g < group.length - 1; g++) {
+          const n1 = group[g], n2 = group[g + 1];
+          const played1 = n1.idx < songState.currentIndex;
+          const current1 = n1.idx === songState.currentIndex;
+          const c = played1 ? 'var(--green)' : current1 ? 'var(--amber-bright)' : 'var(--text-muted)';
+          const o = current1 ? 0.9 : played1 ? 0.8 : 0.35;
+          const x1 = beamData.get(n1.idx).sx;
+          const x2 = beamData.get(n2.idx).sx;
+          svg += `<line x1="${x1}" y1="${by}" x2="${x2}" y2="${by}" stroke="${c}" stroke-width="2.8" opacity="${o}"/>`;
+        }
+      }
     }
   }
 
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
 
-  // Scroll current note's staff line into view
+  // Scroll current staff line into view
   if (songState.currentIndex < n) {
-    const currentLine = Math.floor(songState.currentIndex / perLine);
-    const scrollTarget = (currentLine * sysHeight / H) * container.scrollHeight;
-    const viewMid = scrollTarget - container.clientHeight / 2 + sysHeight;
-    container.scrollTo({ top: Math.max(0, viewMid), behavior: 'smooth' });
+    const cl = lines.findIndex(l => songState.currentIndex >= l.start && songState.currentIndex < l.end);
+    if (cl >= 0) {
+      const target = (cl * sysH / H) * container.scrollHeight;
+      container.scrollTo({ top: Math.max(0, target - container.clientHeight / 3), behavior: 'smooth' });
+    }
   }
 
-  // Progress bar
   const pct = (songState.currentIndex / n) * 100;
   document.getElementById('songProgressFill').style.width = pct + '%';
 }
 
 function updateSongTarget() {
   const song = SONGS[songState.currentSong];
-  if (songState.currentIndex >= song.notes.length) {
+  if (songState.currentIndex >= song.midi.length) {
     completeSong();
     return;
   }
 
-  const noteName = song.notes[songState.currentIndex];
+  const noteName = song.pitchNames[songState.currentIndex];
   const midi = song.midi[songState.currentIndex];
   document.getElementById('songTargetNote').textContent = noteName;
 
@@ -1859,7 +1967,7 @@ function updateSongTarget() {
 function updateSongGame(info) {
   if (!songState.started || songState.cooldown) return;
   const song = SONGS[songState.currentSong];
-  if (!song || songState.currentIndex >= song.notes.length) return;
+  if (!song || songState.currentIndex >= song.midi.length) return;
 
   const targetMidi = song.midi[songState.currentIndex];
   const el = document.getElementById('songDetected');
@@ -1900,9 +2008,10 @@ function completeSong() {
 
   const complete = document.getElementById('songComplete');
   complete.style.display = '';
-  const accuracy = Math.max(0, Math.round((song.notes.length / (song.notes.length + songState.mistakes)) * 100));
+  const total = song.midi.length;
+  const accuracy = Math.max(0, Math.round((total / (total + songState.mistakes)) * 100));
   document.getElementById('songStats').innerHTML =
-    `<strong>${song.title}</strong><br>${song.notes.length} Noten gespielt<br>${songState.mistakes} Fehler · ${accuracy}% Genauigkeit`;
+    `<strong>${song.title}</strong><br>${total} Noten gespielt<br>${songState.mistakes} Fehler · ${accuracy}% Genauigkeit`;
 }
 
 function exitSongPlayer() {
@@ -1920,7 +2029,7 @@ document.getElementById('songRestart').addEventListener('click', () => {
 document.getElementById('songSkipNote').addEventListener('click', () => {
   if (!songState.started) return;
   const song = SONGS[songState.currentSong];
-  if (songState.currentIndex < song.notes.length) {
+  if (songState.currentIndex < song.midi.length) {
     songState.mistakes++;
     songState.currentIndex++;
     renderSongNotes();
