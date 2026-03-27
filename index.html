@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guitar Trainer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&display=swap');
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #0a0908;
+  --bg: #141210;
+  --bg-card: #1c1a17;
+  --bg-elevated: #242119;
+  --amber: #d4a04a;
+  --amber-bright: #f0c060;
+  --amber-dim: #8a6a30;
+  --amber-glow: rgba(212, 160, 74, 0.15);
+  --green: #4ade80;
+  --green-glow: rgba(74, 222, 128, 0.2);
+  --yellow: #facc15;
+  --red: #f87171;
+  --text: #e8e0d4;
+  --text-dim: #8a8078;
+  --text-muted: #5a554e;
+  --radius: 12px;
+  --radius-lg: 20px;
+}
+
+html { font-size: 16px; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle noise texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.app {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 20px 0 12px;
+}
+
+.header h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.8rem;
+  color: var(--amber);
+  letter-spacing: 0.02em;
+  font-weight: 400;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(212, 160, 74, 0.08);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+}
+
+.tab:hover { color: var(--text); }
+
+.tab.active {
+  background: var(--bg-elevated);
+  color: var(--amber);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Mic button */
+.mic-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.mic-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: 1px solid var(--amber-dim);
+  border-radius: 40px;
+  background: var(--bg-card);
+  color: var(--amber);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mic-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--amber);
+}
+
+.mic-btn.active {
+  background: rgba(212, 160, 74, 0.12);
+  border-color: var(--amber);
+  box-shadow: 0 0 20px rgba(212, 160, 74, 0.15);
+}
+
+.mic-btn .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.3s;
+}
+
+.mic-btn.active .dot {
+  background: var(--red);
+  animation: pulse-dot 1.5s ease infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Panels */
+.panel { display: none; flex-direction: column; flex: 1; }
+.panel.active { display: flex; }
+
+/* ---- TUNER ---- */
+.tuner-display {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 32px 20px;
+  text-align: center;
+  border: 1px solid rgba(212, 160, 74, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.tuner-display::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 50% 80%, var(--amber-glow), transparent 50%);
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+
+.tuner-display.listening::before { opacity: 1; }
+
+.note-main {
+  font-family: 'Instrument Serif', serif;
+  font-size: 7rem;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: color 0.3s;
+  position: relative;
+}
+
+.note-main.detected { color: var(--text); }
+.note-main.in-tune { color: var(--green); }
+
+.note-main .octave {
+  font-size: 2.5rem;
+  vertical-align: sub;
+  opacity: 0.5;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+}
+
+.note-main .accidental {
+  font-size: 3rem;
+  vertical-align: super;
+  margin-left: -4px;
+}
+
+.frequency {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Gauge */
+.gauge-container {
+  margin: 28px auto 0;
+  max-width: 360px;
+  width: 100%;
+}
+
+.gauge {
+  position: relative;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gauge-track {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  position: relative;
+  overflow: visible;
+}
+
+.gauge-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 16px;
+  background: var(--text-muted);
+  border-radius: 1px;
+}
+
+.gauge-zones {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.gauge-zones::before {
+  content: '';
+  position: absolute;
+  left: 35%;
+  right: 35%;
+  top: 0;
+  bottom: 0;
+  background: rgba(250, 204, 21, 0.15);
+}
+
+.gauge-zones::after {
+  content: '';
+  position: absolute;
+  left: 45%;
+  right: 45%;
+  top: 0;
+  bottom: 0;
+  background: rgba(74, 222, 128, 0.2);
+}
+
+.gauge-needle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--amber);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: left 0.15s ease-out, background 0.3s, box-shadow 0.3s;
+  box-shadow: 0 0 8px rgba(212, 160, 74, 0.3);
+  z-index: 2;
+}
+
+.gauge-needle.in-tune {
+  background: var(--green);
+  box-shadow: 0 0 16px var(--green-glow);
+}
+
+.gauge-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.cents-display {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* String references */
+.strings-ref {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-top: 24px;
+}
+
+.string-ref {
+  background: var(--bg);
+  border: 1px solid rgba(212, 160, 74, 0.06);
+  border-radius: 10px;
+  padding: 10px 4px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.string-ref.highlight {
+  border-color: var(--amber);
+  background: rgba(212, 160, 74, 0.08);
+}
+
+.string-ref.in-tune {
+  border-color: var(--green);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.string-ref .sname {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.4rem;
+  color: var(--text);
+}
+
+.string-ref .sfreq {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.string-ref .slabel {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* ---- GAME ---- */
+.game-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 32px 20px;
+  text-align: center;
+  border: 1px solid rgba(212, 160, 74, 0.06);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-prompt {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.game-target {
+  font-family: 'Instrument Serif', serif;
+  font-size: 5rem;
+  line-height: 1.1;
+  color: var(--amber-bright);
+  margin-bottom: 4px;
+}
+
+.game-target-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  min-height: 20px;
+}
+
+.game-detected {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.game-detected-note {
+  font-family: 'Instrument Serif', serif;
+  font-size: 2.8rem;
+  color: var(--text-muted);
+  min-height: 3.5rem;
+  transition: color 0.2s;
+}
+
+.game-detected-note.wrong { color: var(--red); }
+.game-detected-note.correct { color: var(--green); }
+
+.game-feedback {
+  margin: 20px 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feedback-msg {
+  padding: 10px 24px;
+  border-radius: 40px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.feedback-msg.correct {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--green);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.feedback-msg.wrong {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--red);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.game-scores {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.score-item {
+  text-align: center;
+}
+
+.score-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.score-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+.game-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: 1px solid rgba(212, 160, 74, 0.2);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  border-color: var(--amber);
+  background: rgba(212, 160, 74, 0.08);
+}
+
+.btn.primary {
+  background: var(--amber);
+  color: var(--bg-deep);
+  border-color: var(--amber);
+}
+
+.btn.primary:hover {
+  background: var(--amber-bright);
+}
+
+/* Advanced: fret positions */
+.fret-positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.fret-pos {
+  background: var(--bg);
+  border: 1px solid rgba(212, 160, 74, 0.1);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* Timer bar */
+.timer-section {
+  margin-bottom: 16px;
+}
+
+.timer-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.timer-toggle label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.3s;
+  border: 1px solid rgba(212, 160, 74, 0.15);
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: rgba(212, 160, 74, 0.2);
+  border-color: var(--amber);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+  background: var(--amber);
+}
+
+.timer-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--bg);
+  border-radius: 2px;
+  overflow: hidden;
+  display: none;
+}
+
+.timer-bar.visible { display: block; }
+
+.timer-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 2px;
+  transition: width 0.1s linear, background 0.3s;
+  width: 100%;
+}
+
+.timer-fill.warning { background: var(--red); }
+
+/* Settings */
+.settings-bar {
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.settings-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.settings-toggle-btn:hover { color: var(--text-dim); }
+
+.settings-panel {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.settings-panel.open {
+  padding: 16px;
+  max-height: 200px;
+  border-color: rgba(212, 160, 74, 0.06);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setting-row + .setting-row { margin-top: 12px; }
+
+.setting-label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.setting-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-value input[type="range"] {
+  width: 120px;
+  accent-color: var(--amber);
+}
+
+.setting-value .val {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--amber);
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- SONGS ---- */
+.song-select {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.song-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid rgba(212, 160, 74, 0.08);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.song-btn:hover {
+  border-color: var(--amber-dim);
+  background: var(--bg-elevated);
+}
+
+.song-btn.active {
+  border-color: var(--amber);
+  background: rgba(212, 160, 74, 0.08);
+}
+
+.song-btn .song-icon {
+  font-size: 1.3rem;
+  width: 28px;
+  text-align: center;
+}
+
+.song-btn .song-info {
+  flex: 1;
+}
+
+.song-btn .song-title {
+  font-weight: 500;
+}
+
+.song-btn .song-difficulty {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.song-player {
+  display: none;
+}
+
+.song-player.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.song-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.song-back {
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid rgba(212, 160, 74, 0.15);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.song-back:hover {
+  border-color: var(--amber);
+  color: var(--text);
+}
+
+.song-now-playing {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.song-now-playing strong {
+  color: var(--amber);
+  font-weight: 500;
+}
+
+.song-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--bg);
+  border-radius: 2px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.song-progress-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.song-notes-display {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid rgba(212, 160, 74, 0.06);
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.song-notes-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: 52px;
+  align-items: center;
+}
+
+.song-note {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.1rem;
+  background: var(--bg);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.song-note.played {
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--green);
+  border-color: rgba(74, 222, 128, 0.2);
+}
+
+.song-note.current {
+  background: rgba(212, 160, 74, 0.15);
+  color: var(--amber-bright);
+  border-color: var(--amber);
+  transform: scale(1.15);
+  box-shadow: 0 0 12px rgba(212, 160, 74, 0.2);
+}
+
+.song-note.upcoming {
+  color: var(--text-dim);
+}
+
+.song-note .note-sep {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  width: 12px;
+  text-align: center;
+}
+
+.song-current-target {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.song-current-target .prompt {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.song-current-target .target-note {
+  font-family: 'Instrument Serif', serif;
+  font-size: 4.5rem;
+  line-height: 1;
+  color: var(--amber-bright);
+}
+
+.song-current-target .target-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.song-detected-section {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.song-detected-section .label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.song-detected-section .detected-note {
+  font-family: 'Instrument Serif', serif;
+  font-size: 2.2rem;
+  color: var(--text-muted);
+  min-height: 2.8rem;
+  transition: color 0.2s;
+}
+
+.song-detected-section .detected-note.correct { color: var(--green); }
+.song-detected-section .detected-note.wrong { color: var(--red); }
+
+.song-complete {
+  text-align: center;
+  padding: 32px 20px;
+}
+
+.song-complete .complete-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.song-complete .complete-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 2rem;
+  color: var(--amber);
+  margin-bottom: 8px;
+}
+
+.song-complete .complete-stats {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 400px) {
+  .note-main { font-size: 5rem; }
+  .game-target { font-size: 3.5rem; }
+  .strings-ref { gap: 4px; }
+  .string-ref { padding: 8px 2px; }
+  .string-ref .sname { font-size: 1.1rem; }
+  .song-note { width: 36px; height: 36px; font-size: 0.9rem; }
+  .song-current-target .target-note { font-size: 3.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Guitar Trainer</h1>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="tuner">Stimmgerät</button>
+    <button class="tab" data-tab="beginner">Saiten-Spiel</button>
+    <button class="tab" data-tab="advanced">Noten-Spiel</button>
+    <button class="tab" data-tab="songs">Lieder</button>
+  </div>
+
+  <div class="mic-section">
+    <button class="mic-btn" id="micBtn">
+      <span class="dot"></span>
+      <span class="mic-label">Mikrofon starten</span>
+    </button>
+  </div>
+
+  <!-- TUNER -->
+  <div class="panel active" id="panel-tuner">
+    <div class="tuner-display" id="tunerDisplay">
+      <div class="note-main" id="noteMain">—<span class="octave"></span></div>
+      <div class="frequency" id="freqDisplay">— Hz</div>
+
+      <div class="gauge-container">
+        <div class="gauge">
+          <div class="gauge-track">
+            <div class="gauge-zones"></div>
+            <div class="gauge-center"></div>
+            <div class="gauge-needle" id="gaugeNeedle"></div>
+          </div>
+        </div>
+        <div class="gauge-labels">
+          <span>♭ −50¢</span>
+          <span>♯ +50¢</span>
+        </div>
+        <div class="cents-display" id="centsDisplay">— ¢</div>
+      </div>
+
+      <div class="strings-ref" id="stringsRef"></div>
+    </div>
+  </div>
+
+  <!-- BEGINNER GAME -->
+  <div class="panel" id="panel-beginner">
+    <div class="game-card">
+      <div class="game-prompt">Spiele die Saite:</div>
+      <div class="game-target" id="beginnerTarget">—</div>
+      <div class="game-target-sub" id="beginnerTargetSub"></div>
+      <div class="game-detected">Erkannt:</div>
+      <div class="game-detected-note" id="beginnerDetected">—</div>
+      <div class="game-feedback" id="beginnerFeedback"></div>
+      <div class="game-scores">
+        <div class="score-item">
+          <div class="score-value" id="beginnerCorrect">0</div>
+          <div class="score-label">Richtig</div>
+        </div>
+        <div class="score-item">
+          <div class="score-value" id="beginnerTotal">0</div>
+          <div class="score-label">Gesamt</div>
+        </div>
+        <div class="score-item">
+          <div class="score-value" id="beginnerStreak">0</div>
+          <div class="score-label">Serie</div>
+        </div>
+      </div>
+      <div class="game-controls">
+        <button class="btn" id="beginnerReset">Zurücksetzen</button>
+        <button class="btn primary" id="beginnerSkip">Überspringen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADVANCED GAME -->
+  <div class="panel" id="panel-advanced">
+    <div class="game-card">
+      <div class="timer-section">
+        <div class="timer-toggle">
+          <label for="timerToggle">Timer (60s)</label>
+          <div class="toggle-switch">
+            <input type="checkbox" id="timerToggle">
+            <span class="toggle-slider"></span>
+          </div>
+        </div>
+        <div class="timer-bar" id="timerBar">
+          <div class="timer-fill" id="timerFill"></div>
+        </div>
+      </div>
+      <div class="game-prompt">Spiele die Note:</div>
+      <div class="game-target" id="advancedTarget">—</div>
+      <div class="game-target-sub" id="advancedTargetSub"></div>
+      <div class="fret-positions" id="fretPositions"></div>
+      <div style="height:12px"></div>
+      <div class="game-detected">Erkannt:</div>
+      <div class="game-detected-note" id="advancedDetected">—</div>
+      <div class="game-feedback" id="advancedFeedback"></div>
+      <div class="game-scores">
+        <div class="score-item">
+          <div class="score-value" id="advancedCorrect">0</div>
+          <div class="score-label">Richtig</div>
+        </div>
+        <div class="score-item">
+          <div class="score-value" id="advancedTotal">0</div>
+          <div class="score-label">Gesamt</div>
+        </div>
+        <div class="score-item">
+          <div class="score-value" id="advancedStreak">0</div>
+          <div class="score-label">Serie</div>
+        </div>
+      </div>
+      <div class="game-controls">
+        <button class="btn" id="advancedReset">Zurücksetzen</button>
+        <button class="btn primary" id="advancedStart">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SONGS -->
+  <div class="panel" id="panel-songs">
+    <div class="song-select" id="songSelect"></div>
+    <div class="song-player" id="songPlayer">
+      <div class="song-header">
+        <button class="song-back" id="songBack">← Zurück</button>
+        <div class="song-now-playing">Lied: <strong id="songTitle"></strong></div>
+      </div>
+      <div class="song-progress-bar">
+        <div class="song-progress-fill" id="songProgressFill"></div>
+      </div>
+      <div class="song-notes-display">
+        <div class="song-notes-row" id="songNotesRow"></div>
+      </div>
+      <div class="song-current-target" id="songTargetSection">
+        <div class="prompt">Nächste Note:</div>
+        <div class="target-note" id="songTargetNote">—</div>
+        <div class="target-hint" id="songTargetHint"></div>
+      </div>
+      <div class="song-detected-section">
+        <div class="label">Erkannt:</div>
+        <div class="detected-note" id="songDetected">—</div>
+      </div>
+      <div class="game-feedback" id="songFeedback"></div>
+      <div class="song-complete" id="songComplete" style="display:none">
+        <div class="complete-icon">🎉</div>
+        <div class="complete-title">Geschafft!</div>
+        <div class="complete-stats" id="songStats"></div>
+      </div>
+      <div class="game-controls">
+        <button class="btn" id="songRestart">Neustart</button>
+        <button class="btn primary" id="songSkipNote">Note überspringen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="settings-bar">
+    <button class="settings-toggle-btn" id="settingsBtn">
+      ⚙ Einstellungen
+    </button>
+    <div class="settings-panel" id="settingsPanel">
+      <div class="setting-row">
+        <span class="setting-label">A4 Referenz</span>
+        <div class="setting-value">
+          <input type="range" id="a4Slider" min="430" max="450" value="440" step="1">
+          <span class="val" id="a4Value">440 Hz</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Erkennungs-Empfindlichkeit</span>
+        <div class="setting-value">
+          <input type="range" id="sensitivitySlider" min="1" max="10" value="10" step="1">
+          <span class="val" id="sensitivityValue">10</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== CONFIG ==========
+let A4 = 440;
+let sensitivity = 10;
+const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const NOTE_NAMES_FLAT = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
+
+// Guitar open strings (standard tuning)
+const GUITAR_STRINGS = [
+  { name: 'E', octave: 2, label: '6. Saite', midi: 40 },
+  { name: 'A', octave: 2, label: '5. Saite', midi: 45 },
+  { name: 'D', octave: 3, label: '4. Saite', midi: 50 },
+  { name: 'G', octave: 3, label: '3. Saite', midi: 55 },
+  { name: 'B', octave: 3, label: '2. Saite', midi: 59 },
+  { name: 'E', octave: 4, label: '1. Saite', midi: 64 },
+];
+
+// ========== STATE ==========
+let audioCtx, analyser, mediaStream, dataBuffer, rafId;
+let isListening = false;
+let currentTab = 'tuner';
+
+// Game state
+const gameState = {
+  beginner: { correct: 0, total: 0, streak: 0, target: null, waiting: false, cooldown: false },
+  advanced: { correct: 0, total: 0, streak: 0, target: null, waiting: false, cooldown: false, timerActive: false, timerStart: 0, timerDuration: 60000 }
+};
+
+// ========== PITCH DETECTION ==========
+function midiFromFreq(freq) {
+  return 12 * Math.log2(freq / A4) + 69;
+}
+
+function freqFromMidi(midi) {
+  return A4 * Math.pow(2, (midi - 69) / 12);
+}
+
+function noteFromMidi(midi) {
+  const note = Math.round(midi);
+  const cents = Math.round((midi - note) * 100);
+  const name = NOTE_NAMES[((note % 12) + 12) % 12];
+  const octave = Math.floor(note / 12) - 1;
+  return { name, octave, cents, midi: note };
+}
+
+function autoCorrelate(buf, sampleRate) {
+  let size = buf.length;
+  let rms = 0;
+  for (let i = 0; i < size; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / size);
+
+  // Sensitivity threshold
+  const threshold = 0.005 + (10 - sensitivity) * 0.004;
+  if (rms < threshold) return -1;
+
+  // Trim edges
+  let r1 = 0, r2 = size - 1;
+  const trimThreshold = 0.2;
+  for (let i = 0; i < size / 2; i++) {
+    if (Math.abs(buf[i]) < trimThreshold) { r1 = i; break; }
+  }
+  for (let i = 1; i < size / 2; i++) {
+    if (Math.abs(buf[size - i]) < trimThreshold) { r2 = size - i; break; }
+  }
+
+  buf = buf.slice(r1, r2);
+  size = buf.length;
+
+  // Autocorrelation
+  const c = new Float32Array(size);
+  for (let i = 0; i < size; i++) {
+    for (let j = 0; j < size - i; j++) {
+      c[i] += buf[j] * buf[j + i];
+    }
+  }
+
+  // Find first dip
+  let d = 0;
+  while (c[d] > c[d + 1]) { d++; if (d >= size - 1) return -1; }
+
+  // Find peak after dip
+  let maxVal = -1, maxPos = -1;
+  for (let i = d; i < size; i++) {
+    if (c[i] > maxVal) { maxVal = c[i]; maxPos = i; }
+  }
+
+  let T0 = maxPos;
+
+  // Parabolic interpolation
+  if (T0 > 0 && T0 < size - 1) {
+    const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+    const a = (x1 + x3 - 2 * x2) / 2;
+    const b = (x3 - x1) / 2;
+    if (a) T0 = T0 - b / (2 * a);
+  }
+
+  return sampleRate / T0;
+}
+
+// ========== AUDIO ==========
+async function startAudio() {
+  if (isListening) {
+    stopAudio();
+    return;
+  }
+
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const source = audioCtx.createMediaStreamSource(mediaStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 4096;
+    source.connect(analyser);
+    dataBuffer = new Float32Array(analyser.fftSize);
+    isListening = true;
+    updateMicBtn();
+    detectPitch();
+  } catch (e) {
+    alert('Mikrofon-Zugriff nicht möglich. Bitte erlaube den Zugriff in den Browser-Einstellungen.');
+  }
+}
+
+function stopAudio() {
+  isListening = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+  if (audioCtx) audioCtx.close();
+  updateMicBtn();
+}
+
+function updateMicBtn() {
+  const btn = document.getElementById('micBtn');
+  btn.classList.toggle('active', isListening);
+  btn.querySelector('.mic-label').textContent = isListening ? 'Mikrofon aktiv' : 'Mikrofon starten';
+  document.getElementById('tunerDisplay')?.classList.toggle('listening', isListening);
+}
+
+// ========== DETECTION LOOP ==========
+let smoothedNote = null;
+let noteHoldCount = 0;
+
+function detectPitch() {
+  if (!isListening) return;
+
+  analyser.getFloatTimeDomainData(dataBuffer);
+  const freq = autoCorrelate(dataBuffer, audioCtx.sampleRate);
+
+  if (freq > 0 && freq > 50 && freq < 2000) {
+    const midi = midiFromFreq(freq);
+    const info = noteFromMidi(midi);
+
+    // Stabilization
+    if (smoothedNote === null || Math.abs(info.midi - smoothedNote) > 1) {
+      smoothedNote = info.midi;
+      noteHoldCount = 0;
+    } else {
+      noteHoldCount++;
+    }
+
+    if (noteHoldCount >= 2) {
+      if (currentTab === 'tuner') updateTuner(freq, info);
+      if (currentTab === 'beginner') updateBeginnerGame(info);
+      if (currentTab === 'advanced') updateAdvancedGame(info);
+      if (currentTab === 'songs') updateSongGame(info);
+    }
+  }
+
+  rafId = requestAnimationFrame(detectPitch);
+}
+
+// ========== TUNER UI ==========
+function updateTuner(freq, info) {
+  const noteEl = document.getElementById('noteMain');
+  const baseName = info.name.replace('♯', '').replace('♭', '');
+  const accidental = info.name.includes('♯') ? '♯' : info.name.includes('♭') ? '♭' : '';
+  noteEl.innerHTML = `${baseName}${accidental ? `<span class="accidental">${accidental}</span>` : ''}<span class="octave">${info.octave}</span>`;
+  noteEl.className = 'note-main detected' + (Math.abs(info.cents) <= 5 ? ' in-tune' : '');
+
+  document.getElementById('freqDisplay').textContent = `${freq.toFixed(1)} Hz`;
+
+  // Gauge
+  const pct = 50 + (info.cents / 50) * 50;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const needle = document.getElementById('gaugeNeedle');
+  needle.style.left = clamped + '%';
+  needle.className = 'gauge-needle' + (Math.abs(info.cents) <= 5 ? ' in-tune' : '');
+
+  const sign = info.cents > 0 ? '+' : '';
+  document.getElementById('centsDisplay').textContent = `${sign}${info.cents} ¢`;
+
+  // Highlight matching string
+  document.querySelectorAll('.string-ref').forEach((el, i) => {
+    const s = GUITAR_STRINGS[i];
+    const diff = Math.abs(info.midi - s.midi);
+    el.classList.toggle('highlight', diff === 0 && Math.abs(info.cents) > 5);
+    el.classList.toggle('in-tune', diff === 0 && Math.abs(info.cents) <= 5);
+  });
+}
+
+function buildStringsRef() {
+  const container = document.getElementById('stringsRef');
+  container.innerHTML = GUITAR_STRINGS.map(s => {
+    const freq = freqFromMidi(s.midi).toFixed(1);
+    return `<div class="string-ref">
+      <div class="sname">${s.name}${s.octave}</div>
+      <div class="sfreq">${freq} Hz</div>
+      <div class="slabel">${s.label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ========== BEGINNER GAME ==========
+function newBeginnerTarget() {
+  const gs = gameState.beginner;
+  let idx;
+  do { idx = Math.floor(Math.random() * GUITAR_STRINGS.length); }
+  while (gs.target && gs.target.midi === GUITAR_STRINGS[idx].midi);
+  gs.target = GUITAR_STRINGS[idx];
+  gs.waiting = true;
+  gs.cooldown = false;
+
+  document.getElementById('beginnerTarget').textContent = `${gs.target.name}${gs.target.octave}`;
+  document.getElementById('beginnerTargetSub').textContent = `${gs.target.label} — ${freqFromMidi(gs.target.midi).toFixed(1)} Hz`;
+  document.getElementById('beginnerDetected').textContent = '—';
+  document.getElementById('beginnerDetected').className = 'game-detected-note';
+  document.getElementById('beginnerFeedback').innerHTML = '';
+}
+
+function updateBeginnerGame(info) {
+  const gs = gameState.beginner;
+  if (!gs.target || !gs.waiting || gs.cooldown) return;
+
+  const noteText = `${info.name}${info.octave}`;
+  const el = document.getElementById('beginnerDetected');
+  el.textContent = noteText;
+
+  const isCorrect = info.midi === gs.target.midi && Math.abs(info.cents) <= 50;
+  const isWrong = info.midi !== gs.target.midi;
+
+  if (isCorrect) {
+    gs.cooldown = true;
+    gs.correct++;
+    gs.total++;
+    gs.streak++;
+    el.className = 'game-detected-note correct';
+    showFeedback('beginner', true);
+    updateBeginnerScores();
+    setTimeout(() => newBeginnerTarget(), 1200);
+  } else if (isWrong && noteHoldCount > 8) {
+    gs.cooldown = true;
+    gs.total++;
+    gs.streak = 0;
+    el.className = 'game-detected-note wrong';
+    showFeedback('beginner', false);
+    updateBeginnerScores();
+    setTimeout(() => { gs.cooldown = false; el.className = 'game-detected-note'; }, 1500);
+  } else {
+    el.className = 'game-detected-note';
+  }
+}
+
+function showFeedback(mode, correct) {
+  const el = document.getElementById(mode + 'Feedback');
+  const msgs = correct
+    ? ['Richtig!', 'Perfekt!', 'Genau!', 'Gut gemacht!', 'Stimmt!']
+    : ['Falsch!', 'Daneben!', 'Nicht ganz!', 'Versuch\'s nochmal!'];
+  const msg = msgs[Math.floor(Math.random() * msgs.length)];
+  el.innerHTML = `<div class="feedback-msg ${correct ? 'correct' : 'wrong'}">${msg}</div>`;
+}
+
+function updateBeginnerScores() {
+  const gs = gameState.beginner;
+  document.getElementById('beginnerCorrect').textContent = gs.correct;
+  document.getElementById('beginnerTotal').textContent = gs.total;
+  document.getElementById('beginnerStreak').textContent = gs.streak;
+}
+
+// ========== ADVANCED GAME ==========
+const GUITAR_RANGE_LOW = 40; // E2
+const GUITAR_RANGE_HIGH = 88; // E6
+
+function getFretPositions(midi) {
+  const positions = [];
+  GUITAR_STRINGS.forEach(s => {
+    const fret = midi - s.midi;
+    if (fret >= 0 && fret <= 24) {
+      positions.push({ string: s.label, fret, stringName: s.name + s.octave });
+    }
+  });
+  return positions;
+}
+
+function newAdvancedTarget() {
+  const gs = gameState.advanced;
+  let midi;
+  do { midi = GUITAR_RANGE_LOW + Math.floor(Math.random() * (GUITAR_RANGE_HIGH - GUITAR_RANGE_LOW + 1)); }
+  while (gs.target && gs.target === midi);
+  gs.target = midi;
+  gs.waiting = true;
+  gs.cooldown = false;
+
+  const info = noteFromMidi(midi);
+  const noteName = `${info.name}${info.octave}`;
+  document.getElementById('advancedTarget').textContent = noteName;
+  document.getElementById('advancedTargetSub').textContent = `${freqFromMidi(midi).toFixed(1)} Hz`;
+
+  const positions = getFretPositions(midi);
+  document.getElementById('fretPositions').innerHTML = positions.map(p =>
+    `<div class="fret-pos">${p.stringName} → Bund ${p.fret}</div>`
+  ).join('');
+
+  document.getElementById('advancedDetected').textContent = '—';
+  document.getElementById('advancedDetected').className = 'game-detected-note';
+  document.getElementById('advancedFeedback').innerHTML = '';
+}
+
+function updateAdvancedGame(info) {
+  const gs = gameState.advanced;
+  if (!gs.target || !gs.waiting || gs.cooldown) return;
+
+  const noteText = `${info.name}${info.octave}`;
+  const el = document.getElementById('advancedDetected');
+  el.textContent = noteText;
+
+  const isCorrect = info.midi === gs.target && Math.abs(info.cents) <= 50;
+  const isWrong = info.midi !== gs.target;
+
+  if (isCorrect) {
+    gs.cooldown = true;
+    gs.correct++;
+    gs.total++;
+    gs.streak++;
+    el.className = 'game-detected-note correct';
+    showFeedback('advanced', true);
+    updateAdvancedScores();
+    setTimeout(() => newAdvancedTarget(), 1000);
+  } else if (isWrong && noteHoldCount > 8) {
+    gs.cooldown = true;
+    gs.total++;
+    gs.streak = 0;
+    el.className = 'game-detected-note wrong';
+    showFeedback('advanced', false);
+    updateAdvancedScores();
+    setTimeout(() => { gs.cooldown = false; el.className = 'game-detected-note'; }, 1500);
+  } else {
+    el.className = 'game-detected-note';
+  }
+}
+
+function updateAdvancedScores() {
+  const gs = gameState.advanced;
+  document.getElementById('advancedCorrect').textContent = gs.correct;
+  document.getElementById('advancedTotal').textContent = gs.total;
+  document.getElementById('advancedStreak').textContent = gs.streak;
+}
+
+// Timer
+let timerInterval;
+
+function startTimer() {
+  const gs = gameState.advanced;
+  gs.timerActive = true;
+  gs.timerStart = Date.now();
+  gs.correct = 0;
+  gs.total = 0;
+  gs.streak = 0;
+  updateAdvancedScores();
+
+  const bar = document.getElementById('timerBar');
+  const fill = document.getElementById('timerFill');
+  bar.classList.add('visible');
+
+  newAdvancedTarget();
+
+  timerInterval = setInterval(() => {
+    const elapsed = Date.now() - gs.timerStart;
+    const remaining = Math.max(0, 1 - elapsed / gs.timerDuration);
+    fill.style.width = (remaining * 100) + '%';
+    fill.classList.toggle('warning', remaining < 0.2);
+
+    if (remaining <= 0) {
+      stopTimer();
+    }
+  }, 50);
+
+  document.getElementById('advancedStart').textContent = 'Stop';
+}
+
+function stopTimer() {
+  const gs = gameState.advanced;
+  gs.timerActive = false;
+  gs.waiting = false;
+  clearInterval(timerInterval);
+  document.getElementById('timerBar').classList.remove('visible');
+  document.getElementById('advancedStart').textContent = 'Start';
+
+  if (gs.total > 0) {
+    document.getElementById('advancedFeedback').innerHTML =
+      `<div class="feedback-msg correct">Fertig! ${gs.correct}/${gs.total} richtig</div>`;
+  }
+}
+
+// ========== TABS ==========
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    currentTab = tab.dataset.tab;
+    document.getElementById('panel-' + currentTab).classList.add('active');
+
+    if (currentTab === 'beginner' && !gameState.beginner.target) newBeginnerTarget();
+    if (currentTab === 'advanced' && !gameState.advanced.target) newAdvancedTarget();
+    if (currentTab === 'songs') buildSongSelect();
+  });
+});
+
+// ========== BUTTONS ==========
+document.getElementById('micBtn').addEventListener('click', startAudio);
+
+document.getElementById('beginnerSkip').addEventListener('click', newBeginnerTarget);
+document.getElementById('beginnerReset').addEventListener('click', () => {
+  Object.assign(gameState.beginner, { correct: 0, total: 0, streak: 0 });
+  updateBeginnerScores();
+  newBeginnerTarget();
+});
+
+document.getElementById('advancedStart').addEventListener('click', () => {
+  const gs = gameState.advanced;
+  if (document.getElementById('timerToggle').checked) {
+    if (gs.timerActive) stopTimer(); else startTimer();
+  } else {
+    newAdvancedTarget();
+  }
+});
+
+document.getElementById('advancedReset').addEventListener('click', () => {
+  if (gameState.advanced.timerActive) stopTimer();
+  Object.assign(gameState.advanced, { correct: 0, total: 0, streak: 0, target: null });
+  updateAdvancedScores();
+  newAdvancedTarget();
+  document.getElementById('advancedFeedback').innerHTML = '';
+});
+
+// ========== SONGS ==========
+// Notes as MIDI values. Helper to convert note name to midi.
+function noteNameToMidi(name) {
+  const map = { 'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11 };
+  const match = name.match(/^([A-G][#b]?)(\d)$/);
+  if (!match) return -1;
+  return map[match[1]] + (parseInt(match[2]) + 1) * 12;
+}
+
+const SONGS = [
+  {
+    title: 'Alle meine Entchen',
+    difficulty: 'Sehr leicht',
+    icon: '🐤',
+    // C D E F G G | A A A A G | A A A A G | F F F F E E | D D D D C
+    notes: 'C4 D4 E4 F4 G4 G4 A4 A4 A4 A4 G4 A4 A4 A4 A4 G4 F4 F4 F4 F4 E4 E4 D4 D4 D4 D4 C4'.split(' ')
+  },
+  {
+    title: 'Hänschen klein',
+    difficulty: 'Sehr leicht',
+    icon: '🎒',
+    notes: 'G4 E4 E4 F4 D4 D4 C4 D4 E4 F4 G4 G4 G4 G4 E4 E4 F4 D4 D4 C4 E4 G4 G4 C4'.split(' ')
+  },
+  {
+    title: 'Ode an die Freude',
+    difficulty: 'Leicht',
+    icon: '🎵',
+    notes: 'E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4 D4 D4 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4 C4 C4'.split(' ')
+  },
+  {
+    title: 'Smoke on the Water',
+    difficulty: 'Leicht',
+    icon: '🔥',
+    notes: 'G3 Bb3 C4 G3 Bb3 Db4 C4 G3 Bb3 C4 Bb3 G3'.split(' ')
+  },
+  {
+    title: 'Seven Nation Army',
+    difficulty: 'Leicht',
+    icon: '⚡',
+    notes: 'E3 E3 G3 E3 D3 C3 B2 E3 E3 G3 E3 D3 C3 D3 C3 B2'.split(' ')
+  },
+  {
+    title: 'Come As You Are',
+    difficulty: 'Mittel',
+    icon: '🎸',
+    notes: 'E3 F#3 G#3 A3 G#3 F#3 E3 F#3 G#3 A3 G#3 F#3 E3 F#3 G#3 A3 G#3 A3 A3 A3'.split(' ').map(n => n.replace('#', '#'))
+  },
+  {
+    title: 'Für Elise (Anfang)',
+    difficulty: 'Mittel',
+    icon: '🎹',
+    notes: 'E5 D#5 E5 D#5 E5 B4 D5 C5 A4 C4 E4 A4 B4 E4 G#4 B4 C5'.split(' ')
+  },
+  {
+    title: 'Bruder Jakob',
+    difficulty: 'Leicht',
+    icon: '🔔',
+    notes: 'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4 E4 F4 G4 G4 A4 G4 F4 E4 C4 G4 A4 G4 F4 E4 C4 C4 G3 C4 C4 G3 C4'.split(' ')
+  },
+];
+
+// Convert note names to MIDI
+SONGS.forEach(song => {
+  song.midi = song.notes.map(noteNameToMidi);
+});
+
+const songState = {
+  currentSong: null,
+  currentIndex: 0,
+  mistakes: 0,
+  cooldown: false,
+  started: false,
+};
+
+function buildSongSelect() {
+  const container = document.getElementById('songSelect');
+  if (container.children.length > 0) return; // already built
+  container.innerHTML = SONGS.map((song, i) => `
+    <button class="song-btn" data-song="${i}">
+      <span class="song-icon">${song.icon}</span>
+      <div class="song-info">
+        <div class="song-title">${song.title}</div>
+        <div class="song-difficulty">${song.difficulty} · ${song.notes.length} Noten</div>
+      </div>
+    </button>
+  `).join('');
+
+  container.querySelectorAll('.song-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectSong(parseInt(btn.dataset.song)));
+  });
+}
+
+function selectSong(idx) {
+  songState.currentSong = idx;
+  songState.currentIndex = 0;
+  songState.mistakes = 0;
+  songState.cooldown = false;
+  songState.started = true;
+
+  document.getElementById('songSelect').style.display = 'none';
+  document.getElementById('songPlayer').classList.add('active');
+  document.getElementById('songComplete').style.display = 'none';
+  document.getElementById('songTargetSection').style.display = '';
+  document.getElementById('songDetected').parentElement.style.display = '';
+
+  const song = SONGS[idx];
+  document.getElementById('songTitle').textContent = song.title;
+
+  renderSongNotes();
+  updateSongTarget();
+}
+
+function renderSongNotes() {
+  const song = SONGS[songState.currentSong];
+  const row = document.getElementById('songNotesRow');
+  row.innerHTML = song.notes.map((note, i) => {
+    let cls = 'song-note';
+    if (i < songState.currentIndex) cls += ' played';
+    else if (i === songState.currentIndex) cls += ' current';
+    else cls += ' upcoming';
+    return `<div class="${cls}" data-idx="${i}">${note.replace(/(\d)$/, '<sub>$1</sub>')}</div>`;
+  }).join('');
+
+  // Scroll current note into view
+  const currentEl = row.querySelector('.current');
+  if (currentEl) currentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+  // Progress bar
+  const pct = (songState.currentIndex / song.notes.length) * 100;
+  document.getElementById('songProgressFill').style.width = pct + '%';
+}
+
+function updateSongTarget() {
+  const song = SONGS[songState.currentSong];
+  if (songState.currentIndex >= song.notes.length) {
+    completeSong();
+    return;
+  }
+
+  const noteName = song.notes[songState.currentIndex];
+  const midi = song.midi[songState.currentIndex];
+  document.getElementById('songTargetNote').textContent = noteName;
+
+  // Show fret hint
+  const positions = getFretPositions(midi);
+  const hint = positions.map(p => `${p.stringName} Bund ${p.fret}`).join(' · ');
+  document.getElementById('songTargetHint').textContent = hint;
+
+  document.getElementById('songDetected').textContent = '—';
+  document.getElementById('songDetected').className = 'detected-note';
+  document.getElementById('songFeedback').innerHTML = '';
+}
+
+function updateSongGame(info) {
+  if (!songState.started || songState.cooldown) return;
+  const song = SONGS[songState.currentSong];
+  if (!song || songState.currentIndex >= song.notes.length) return;
+
+  const targetMidi = song.midi[songState.currentIndex];
+  const el = document.getElementById('songDetected');
+  el.textContent = `${info.name}${info.octave}`;
+
+  const isCorrect = info.midi === targetMidi && Math.abs(info.cents) <= 50;
+
+  if (isCorrect) {
+    songState.cooldown = true;
+    el.className = 'detected-note correct';
+    songState.currentIndex++;
+    renderSongNotes();
+
+    setTimeout(() => {
+      songState.cooldown = false;
+      updateSongTarget();
+    }, 400);
+  } else if (info.midi !== targetMidi && noteHoldCount > 6) {
+    el.className = 'detected-note wrong';
+    songState.mistakes++;
+    songState.cooldown = true;
+    setTimeout(() => {
+      songState.cooldown = false;
+      el.className = 'detected-note';
+    }, 800);
+  } else {
+    el.className = 'detected-note';
+  }
+}
+
+function completeSong() {
+  const song = SONGS[songState.currentSong];
+  songState.started = false;
+  document.getElementById('songTargetSection').style.display = 'none';
+  document.getElementById('songDetected').parentElement.style.display = 'none';
+  document.getElementById('songFeedback').innerHTML = '';
+  document.getElementById('songProgressFill').style.width = '100%';
+
+  const complete = document.getElementById('songComplete');
+  complete.style.display = '';
+  const accuracy = Math.max(0, Math.round((song.notes.length / (song.notes.length + songState.mistakes)) * 100));
+  document.getElementById('songStats').innerHTML =
+    `<strong>${song.title}</strong><br>${song.notes.length} Noten gespielt<br>${songState.mistakes} Fehler · ${accuracy}% Genauigkeit`;
+}
+
+function exitSongPlayer() {
+  songState.started = false;
+  songState.currentSong = null;
+  document.getElementById('songPlayer').classList.remove('active');
+  document.getElementById('songSelect').style.display = '';
+}
+
+// Song buttons
+document.getElementById('songBack').addEventListener('click', exitSongPlayer);
+document.getElementById('songRestart').addEventListener('click', () => {
+  if (songState.currentSong !== null) selectSong(songState.currentSong);
+});
+document.getElementById('songSkipNote').addEventListener('click', () => {
+  if (!songState.started) return;
+  const song = SONGS[songState.currentSong];
+  if (songState.currentIndex < song.notes.length) {
+    songState.mistakes++;
+    songState.currentIndex++;
+    renderSongNotes();
+    updateSongTarget();
+  }
+});
+
+// ========== SETTINGS ==========
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('settingsPanel').classList.toggle('open');
+});
+
+document.getElementById('a4Slider').addEventListener('input', e => {
+  A4 = parseInt(e.target.value);
+  document.getElementById('a4Value').textContent = A4 + ' Hz';
+  buildStringsRef();
+});
+
+document.getElementById('sensitivitySlider').addEventListener('input', e => {
+  sensitivity = parseInt(e.target.value);
+  document.getElementById('sensitivityValue').textContent = sensitivity;
+});
+
+// ========== INIT ==========
+buildStringsRef();
+</script>
+</body>
+</html>
