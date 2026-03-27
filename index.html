@@ -1871,6 +1871,9 @@ function renderSongNotes() {
       const current = idx === songState.currentIndex;
       const color = played ? 'var(--green)' : current ? 'var(--amber-bright)' : 'var(--text-dim)';
       const op = current ? 1 : played ? 0.85 : 0.7;
+
+      // Wrap each note in a group with an ID for fast updates
+      svg += `<g id="sn${idx}" data-color="${color}" data-op="${op}">`;
       const bd = beamData.get(idx);
       const stemUp = bd ? bd.stemUp : nt.stemUp;
       const sx = bd ? bd.sx : nt.sx;
@@ -1922,6 +1925,7 @@ function renderSongNotes() {
           }
         }
       }
+      svg += `</g>`;
     }
 
     // Draw beams
@@ -1983,6 +1987,57 @@ function updateSongTarget() {
   document.getElementById('songFeedback').innerHTML = '';
 }
 
+// Fast visual update: only recolor prev/current notes without rebuilding SVG
+function updateSongNoteFast(prevIdx, newIdx) {
+  const prev = document.getElementById('sn' + prevIdx);
+  if (prev) {
+    // Mark as played (green)
+    prev.querySelectorAll('ellipse, line, path, text').forEach(el => {
+      if (el.getAttribute('fill') && el.getAttribute('fill') !== 'var(--bg-card)' && el.getAttribute('fill') !== 'none') {
+        el.setAttribute('fill', 'var(--green)');
+      }
+      if (el.getAttribute('stroke') && el.getAttribute('stroke') !== 'var(--text-muted)') {
+        el.setAttribute('stroke', 'var(--green)');
+      }
+      el.setAttribute('opacity', '0.85');
+    });
+    // Remove glow
+    const glow = prev.querySelector('ellipse[fill="var(--amber-glow)"]');
+    if (glow) glow.remove();
+  }
+
+  const curr = document.getElementById('sn' + newIdx);
+  if (curr) {
+    // Mark as current (amber)
+    curr.querySelectorAll('ellipse, line, path, text').forEach(el => {
+      if (el.getAttribute('fill') && el.getAttribute('fill') !== 'var(--bg-card)' && el.getAttribute('fill') !== 'none') {
+        el.setAttribute('fill', 'var(--amber-bright)');
+      }
+      if (el.getAttribute('stroke') && el.getAttribute('stroke') !== 'var(--text-muted)') {
+        el.setAttribute('stroke', 'var(--amber-bright)');
+      }
+      el.setAttribute('opacity', '1');
+    });
+    // Scroll into view if needed
+    const container = document.getElementById('songStaffDisplay');
+    const svgEl = container.querySelector('svg');
+    if (svgEl && curr) {
+      const bbox = curr.getBBox();
+      const svgH = parseFloat(svgEl.getAttribute('viewBox').split(' ')[3]);
+      const scrollTarget = (bbox.y / svgH) * container.scrollHeight;
+      const visible = scrollTarget >= container.scrollTop && scrollTarget <= container.scrollTop + container.clientHeight - 40;
+      if (!visible) {
+        container.scrollTo({ top: Math.max(0, scrollTarget - container.clientHeight / 3), behavior: 'smooth' });
+      }
+    }
+  }
+
+  // Progress bar
+  const song = SONGS[songState.currentSong];
+  const pct = (newIdx / song.midi.length) * 100;
+  document.getElementById('songProgressFill').style.width = pct + '%';
+}
+
 function updateSongGame(info) {
   if (!songState.started || songState.cooldown) return;
   const song = SONGS[songState.currentSong];
@@ -1997,21 +2052,24 @@ function updateSongGame(info) {
   if (isCorrect) {
     songState.cooldown = true;
     el.className = 'detected-note correct';
+    const prevIdx = songState.currentIndex;
     songState.currentIndex++;
-    renderSongNotes();
 
-    setTimeout(() => {
-      songState.cooldown = false;
-      updateSongTarget();
-    }, 400);
-  } else if (info.midi !== targetMidi && noteHoldCount > 6) {
+    // Fast update instead of full re-render
+    updateSongNoteFast(prevIdx, songState.currentIndex);
+    updateSongTarget();
+
+    // Short cooldown to avoid double-triggers on same note
+    setTimeout(() => { songState.cooldown = false; }, 150);
+  } else if (info.midi !== targetMidi && noteHoldCount > 12) {
+    // Higher threshold to avoid false negatives during quick playing
     el.className = 'detected-note wrong';
     songState.mistakes++;
     songState.cooldown = true;
     setTimeout(() => {
       songState.cooldown = false;
       el.className = 'detected-note';
-    }, 800);
+    }, 500);
   } else {
     el.className = 'detected-note';
   }
