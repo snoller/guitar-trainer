@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#d4a04a" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#0a0908" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="stringGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0c060" stop-opacity="0.1"/>
+      <stop offset="50%" stop-color="#f0c060" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#f0c060" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0908"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Decorative strings -->
+  <line x1="80" y1="0" x2="80" y2="630" stroke="url(#stringGrad)" stroke-width="1"/>
+  <line x1="120" y1="0" x2="120" y2="630" stroke="url(#stringGrad)" stroke-width="1.2"/>
+  <line x1="160" y1="0" x2="160" y2="630" stroke="url(#stringGrad)" stroke-width="1.5"/>
+  <line x1="200" y1="0" x2="200" y2="630" stroke="url(#stringGrad)" stroke-width="1.8"/>
+  <line x1="240" y1="0" x2="240" y2="630" stroke="url(#stringGrad)" stroke-width="2"/>
+  <line x1="280" y1="0" x2="280" y2="630" stroke="url(#stringGrad)" stroke-width="2.2"/>
+
+  <!-- Fret lines -->
+  <line x1="60" y1="180" x2="300" y2="180" stroke="#8a6a30" stroke-width="1" opacity="0.3"/>
+  <line x1="60" y1="300" x2="300" y2="300" stroke="#8a6a30" stroke-width="1" opacity="0.3"/>
+  <line x1="60" y1="420" x2="300" y2="420" stroke="#8a6a30" stroke-width="1" opacity="0.3"/>
+
+  <!-- Fret dot -->
+  <circle cx="180" cy="240" r="6" fill="#8a6a30" opacity="0.3"/>
+  <circle cx="180" cy="360" r="6" fill="#8a6a30" opacity="0.3"/>
+
+  <!-- Title -->
+  <text x="600" y="240" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="82" fill="#d4a04a" font-style="italic">Guitar Trainer</text>
+
+  <!-- Subtitle -->
+  <text x="600" y="310" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#8a8078" letter-spacing="0.1em">STIMMGERAET  ·  UEBUNGEN  ·  LIEDER</text>
+
+  <!-- Note badges -->
+  <g transform="translate(420, 370)">
+    <rect x="0" y="0" width="56" height="56" rx="10" fill="#1c1a17" stroke="#d4a04a" stroke-width="1.5" opacity="0.8"/>
+    <text x="28" y="38" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#e8e0d4">E</text>
+  </g>
+  <g transform="translate(490, 370)">
+    <rect x="0" y="0" width="56" height="56" rx="10" fill="#1c1a17" stroke="#d4a04a" stroke-width="1.5" opacity="0.8"/>
+    <text x="28" y="38" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#e8e0d4">A</text>
+  </g>
+  <g transform="translate(560, 370)">
+    <rect x="0" y="0" width="56" height="56" rx="10" fill="#1c1a17" stroke="#d4a04a" stroke-width="1.5" opacity="0.8"/>
+    <text x="28" y="38" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#e8e0d4">D</text>
+  </g>
+  <g transform="translate(630, 370)">
+    <rect x="0" y="0" width="56" height="56" rx="10" fill="rgba(74,222,128,0.1)" stroke="#4ade80" stroke-width="1.5" opacity="0.9"/>
+    <text x="28" y="38" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#4ade80">G</text>
+  </g>
+  <g transform="translate(700, 370)">
+    <rect x="0" y="0" width="56" height="56" rx="10" fill="#1c1a17" stroke="#d4a04a" stroke-width="1.5" opacity="0.8"/>
+    <text x="28" y="38" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#e8e0d4">B</text>
+  </g>
+  <g transform="translate(770, 370)">
+    <rect x="0" y="0" width="56" height="56" rx="10" fill="#1c1a17" stroke="#d4a04a" stroke-width="1.5" opacity="0.8"/>
+    <text x="28" y="38" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#e8e0d4">E</text>
+  </g>
+
+  <!-- Tuner indicator mockup -->
+  <line x1="430" y1="480" x2="810" y2="480" stroke="#242119" stroke-width="4" stroke-linecap="round"/>
+  <line x1="570" y1="480" x2="670" y2="480" stroke="rgba(74,222,128,0.3)" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="625" cy="480" r="8" fill="#4ade80"/>
+  <line x1="620" y1="468" x2="620" y2="492" stroke="#5a554e" stroke-width="1.5"/>
+
+  <!-- Border -->
+  <rect x="2" y="2" width="1196" height="626" rx="0" fill="none" stroke="#d4a04a" stroke-width="1" opacity="0.15"/>
+</svg>

@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Guitar Trainer</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta property="og:title" content="Guitar Trainer">
+<meta property="og:description" content="Stimmgerät, Saiten- & Noten-Spiel und Lieder zum Nachspielen — direkt im Browser.">
+<meta property="og:image" content="https://snoller.github.io/guitar-trainer/og-image.png">
+<meta property="og:url" content="https://snoller.github.io/guitar-trainer/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="Gitarre üben im Browser: Stimmgerät mit Tonerkennung, Saiten-Spiel, Noten-Quiz und einfache Lieder nachspielen.">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&display=swap');
 
@@ -1022,11 +1030,11 @@ body::before {
     <div class="game-card">
       <div class="timer-section">
         <div class="timer-toggle">
-          <label for="timerToggle">Timer (60s)</label>
-          <div class="toggle-switch">
+          <span>Timer (60s)</span>
+          <label class="toggle-switch" for="timerToggle">
             <input type="checkbox" id="timerToggle">
             <span class="toggle-slider"></span>
-          </div>
+          </label>
         </div>
         <div class="timer-bar" id="timerBar">
           <div class="timer-fill" id="timerFill"></div>
