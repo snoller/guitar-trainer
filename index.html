@@ -1456,7 +1456,7 @@ function updateBeginnerScores() {
 const GUITAR_RANGE_LOW = 40; // E2
 const GUITAR_RANGE_HIGH = 88; // E6
 
-function getFretPositions(midi) {
+function getFretPositions(midi, maxResults = 2) {
   const positions = [];
   GUITAR_STRINGS.forEach(s => {
     const fret = midi - s.midi;
@@ -1464,7 +1464,8 @@ function getFretPositions(midi) {
       positions.push({ string: s.label, fret, stringName: s.name + s.octave });
     }
   });
-  return positions;
+  positions.sort((a, b) => a.fret - b.fret);
+  return maxResults ? positions.slice(0, maxResults) : positions;
 }
 
 function newAdvancedTarget() {
@@ -1850,8 +1851,8 @@ function renderSongNotes() {
       const { nx, ny, pos, sharp, dur, idx } = nt;
       const played = idx < songState.currentIndex;
       const current = idx === songState.currentIndex;
-      const color = played ? 'var(--green)' : current ? 'var(--amber-bright)' : 'var(--text-muted)';
-      const op = current ? 1 : played ? 0.9 : 0.4;
+      const color = played ? 'var(--green)' : current ? 'var(--amber-bright)' : 'var(--text-dim)';
+      const op = current ? 1 : played ? 0.85 : 0.7;
       const bd = beamData.get(idx);
       const stemUp = bd ? bd.stemUp : nt.stemUp;
       const sx = bd ? bd.sx : nt.sx;
@@ -1919,7 +1920,7 @@ function renderSongNotes() {
           const played1 = n1.idx < songState.currentIndex;
           const current1 = n1.idx === songState.currentIndex;
           const c = played1 ? 'var(--green)' : current1 ? 'var(--amber-bright)' : 'var(--text-muted)';
-          const o = current1 ? 0.9 : played1 ? 0.8 : 0.35;
+          const o = current1 ? 0.9 : played1 ? 0.8 : 0.6;
           const x1 = beamData.get(n1.idx).sx;
           const x2 = beamData.get(n2.idx).sx;
           svg += `<line x1="${x1}" y1="${by}" x2="${x2}" y2="${by}" stroke="${c}" stroke-width="2.8" opacity="${o}"/>`;
