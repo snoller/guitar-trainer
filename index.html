@@ -1395,7 +1395,7 @@ function newBeginnerTarget() {
   gs.waiting = true;
   gs.cooldown = false;
 
-  document.getElementById('beginnerTarget').textContent = `${gs.target.name}${gs.target.octave}`;
+  document.getElementById('beginnerTarget').textContent = gs.target.name;
   document.getElementById('beginnerTargetSub').textContent = `${gs.target.label} — ${freqFromMidi(gs.target.midi).toFixed(1)} Hz`;
   document.getElementById('beginnerDetected').textContent = '—';
   document.getElementById('beginnerDetected').className = 'game-detected-note';
