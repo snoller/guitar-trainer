@@ -938,6 +938,13 @@ body::before {
   line-height: 1.6;
 }
 
+/* ---- STAFF NOTATION ---- */
+.staff-container {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+
 /* Responsive */
 @media (max-width: 400px) {
   .note-main { font-size: 5rem; }
@@ -1001,6 +1008,7 @@ body::before {
       <div class="game-prompt">Spiele die Saite:</div>
       <div class="game-target" id="beginnerTarget">—</div>
       <div class="game-target-sub" id="beginnerTargetSub"></div>
+      <div class="staff-container" id="beginnerStaff"></div>
       <div class="game-detected">Erkannt:</div>
       <div class="game-detected-note" id="beginnerDetected">—</div>
       <div class="game-feedback" id="beginnerFeedback"></div>
@@ -1044,7 +1052,7 @@ body::before {
       <div class="game-target" id="advancedTarget">—</div>
       <div class="game-target-sub" id="advancedTargetSub"></div>
       <div class="fret-positions" id="fretPositions"></div>
-      <div style="height:12px"></div>
+      <div class="staff-container" id="advancedStaff"></div>
       <div class="game-detected">Erkannt:</div>
       <div class="game-detected-note" id="advancedDetected">—</div>
       <div class="game-feedback" id="advancedFeedback"></div>
@@ -1087,6 +1095,7 @@ body::before {
         <div class="prompt">Nächste Note:</div>
         <div class="target-note" id="songTargetNote">—</div>
         <div class="target-hint" id="songTargetHint"></div>
+        <div class="staff-container" id="songStaff"></div>
       </div>
       <div class="song-detected-section">
         <div class="label">Erkannt:</div>
@@ -1340,6 +1349,82 @@ function buildStringsRef() {
   }).join('');
 }
 
+// ========== STAFF NOTATION ==========
+function renderStaffNote(containerId, midi) {
+  const container = document.getElementById(containerId);
+  if (!container || midi < 0) return;
+
+  // Guitar is 8vb transposing instrument — display an octave higher
+  const dm = midi + 12;
+  const noteInOctave = dm % 12;
+  const octave = Math.floor(dm / 12) - 1;
+  const DIATONIC = [0,0,1,1,2,3,3,4,4,5,5,6];
+  const IS_SHARP = [0,1,0,1,0,0,1,0,1,0,1,0];
+  const pos = (octave - 4) * 7 + DIATONIC[noteInOctave] - 2; // 0 = bottom line (E4 written)
+  const sharp = IS_SHARP[noteInOctave];
+
+  const LS = 11; // line spacing in px
+  const HS = LS / 2;
+  const W = 130;
+  const noteX = 78;
+  const stemLen = 30;
+  const stemUp = pos < 4;
+
+  // Staff reference Y (before offset)
+  const sTop = 0;
+  const sBot = 4 * LS;
+  const nY = sBot - pos * HS;
+  const stemEnd = stemUp ? nY - stemLen : nY + stemLen;
+
+  // Compute bounds
+  const yMin = Math.min(sTop, nY, stemEnd) - 16;
+  const yMax = Math.max(sBot, nY, stemEnd) + 16;
+  const H = yMax - yMin;
+  const o = -yMin; // y-offset
+
+  let s = '';
+
+  // Staff lines
+  for (let i = 0; i < 5; i++) {
+    const y = sTop + i * LS + o;
+    s += `<line x1="12" y1="${y}" x2="${W-12}" y2="${y}" stroke="var(--text-muted)" stroke-width="0.8"/>`;
+  }
+
+  // Treble clef with 8 below
+  const clefY = sTop + 2 * LS + o;
+  s += `<text x="24" y="${clefY + 1}" font-size="38" fill="var(--text-dim)" text-anchor="middle" dominant-baseline="central" font-family="'Instrument Serif', Georgia, serif">𝄞</text>`;
+  s += `<text x="24" y="${sBot + o + 12}" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="'DM Sans', sans-serif">8</text>`;
+
+  // Ledger lines below staff
+  for (let p = -2; p >= pos; p -= 2) {
+    const y = sBot - p * HS + o;
+    s += `<line x1="${noteX - 12}" y1="${y}" x2="${noteX + 12}" y2="${y}" stroke="var(--text-muted)" stroke-width="0.8"/>`;
+  }
+  // Ledger lines above staff
+  for (let p = 10; p <= pos; p += 2) {
+    const y = sBot - p * HS + o;
+    s += `<line x1="${noteX - 12}" y1="${y}" x2="${noteX + 12}" y2="${y}" stroke="var(--text-muted)" stroke-width="0.8"/>`;
+  }
+
+  const ny = nY + o;
+
+  // Sharp symbol
+  if (sharp) {
+    s += `<text x="${noteX - 14}" y="${ny + 1}" font-size="15" fill="var(--amber)" text-anchor="middle" dominant-baseline="central">♯</text>`;
+  }
+
+  // Note head (tilted ellipse)
+  s += `<ellipse cx="${noteX}" cy="${ny}" rx="5.8" ry="4.2" fill="var(--amber)" transform="rotate(-15,${noteX},${ny})"/>`;
+
+  // Stem
+  const sx = stemUp ? noteX + 5.3 : noteX - 5.3;
+  const sy1 = ny;
+  const sy2 = stemUp ? ny - stemLen : ny + stemLen;
+  s += `<line x1="${sx}" y1="${sy1}" x2="${sx}" y2="${sy2}" stroke="var(--amber)" stroke-width="1.3"/>`;
+
+  container.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${s}</svg>`;
+}
+
 // ========== BEGINNER GAME ==========
 function newBeginnerTarget() {
   const gs = gameState.beginner;
@@ -1355,6 +1440,7 @@ function newBeginnerTarget() {
   document.getElementById('beginnerDetected').textContent = '—';
   document.getElementById('beginnerDetected').className = 'game-detected-note';
   document.getElementById('beginnerFeedback').innerHTML = '';
+  renderStaffNote('beginnerStaff', gs.target.midi);
 }
 
 function updateBeginnerGame(info) {
@@ -1443,6 +1529,7 @@ function newAdvancedTarget() {
   document.getElementById('advancedDetected').textContent = '—';
   document.getElementById('advancedDetected').className = 'game-detected-note';
   document.getElementById('advancedFeedback').innerHTML = '';
+  renderStaffNote('advancedStaff', midi);
 }
 
 function updateAdvancedGame(info) {
@@ -1720,6 +1807,7 @@ function updateSongTarget() {
   const positions = getFretPositions(midi);
   const hint = positions.map(p => `${p.stringName} Bund ${p.fret}`).join(' · ');
   document.getElementById('songTargetHint').textContent = hint;
+  renderStaffNote('songStaff', midi);
 
   document.getElementById('songDetected').textContent = '—';
   document.getElementById('songDetected').className = 'detected-note';
