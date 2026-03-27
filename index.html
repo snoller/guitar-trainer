@@ -1953,7 +1953,7 @@ function updateSongTarget() {
 
   const noteName = song.pitchNames[songState.currentIndex];
   const midi = song.midi[songState.currentIndex];
-  document.getElementById('songTargetNote').textContent = noteName;
+  document.getElementById('songTargetNote').textContent = noteName.replace(/\d+$/, '');
 
   // Show fret hint
   const positions = getFretPositions(midi);
