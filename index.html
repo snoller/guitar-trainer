@@ -813,78 +813,42 @@ body::before {
 .song-notes-display {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 16px 8px;
   border: 1px solid rgba(212, 160, 74, 0.06);
   margin-bottom: 16px;
-  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 50vh;
 }
 
-.song-notes-row {
-  display: flex;
-  gap: 4px;
-  justify-content: center;
-  flex-wrap: wrap;
-  min-height: 52px;
-  align-items: center;
+.song-notes-display svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.song-note {
-  width: 44px;
-  height: 44px;
+.song-current-info {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.song-current-info .current-label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.song-current-info .current-note {
   font-family: 'Instrument Serif', serif;
-  font-size: 1.1rem;
-  background: var(--bg);
-  color: var(--text-muted);
-  border: 1px solid transparent;
-  transition: all 0.25s ease;
-  flex-shrink: 0;
-}
-
-.song-note.played {
-  background: rgba(74, 222, 128, 0.1);
-  color: var(--green);
-  border-color: rgba(74, 222, 128, 0.2);
-}
-
-.song-note.current {
-  background: rgba(212, 160, 74, 0.15);
+  font-size: 2.2rem;
   color: var(--amber-bright);
-  border-color: var(--amber);
-  transform: scale(1.15);
-  box-shadow: 0 0 12px rgba(212, 160, 74, 0.2);
-}
-
-.song-note.upcoming {
-  color: var(--text-dim);
-}
-
-.song-note .note-sep {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  width: 12px;
-  text-align: center;
-}
-
-.song-current-target {
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.song-current-target .prompt {
-  font-size: 0.9rem;
-  color: var(--text-dim);
-  margin-bottom: 4px;
-}
-
-.song-current-target .target-note {
-  font-family: 'Instrument Serif', serif;
-  font-size: 4.5rem;
   line-height: 1;
-  color: var(--amber-bright);
+}
+
+.song-current-info .current-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .song-current-target .target-hint {
@@ -952,8 +916,7 @@ body::before {
   .strings-ref { gap: 4px; }
   .string-ref { padding: 8px 2px; }
   .string-ref .sname { font-size: 1.1rem; }
-  .song-note { width: 36px; height: 36px; font-size: 0.9rem; }
-  .song-current-target .target-note { font-size: 3.5rem; }
+  .song-current-info .current-note { font-size: 1.8rem; }
 }
 </style>
 </head>
@@ -1088,14 +1051,11 @@ body::before {
       <div class="song-progress-bar">
         <div class="song-progress-fill" id="songProgressFill"></div>
       </div>
-      <div class="song-notes-display">
-        <div class="song-notes-row" id="songNotesRow"></div>
-      </div>
-      <div class="song-current-target" id="songTargetSection">
-        <div class="prompt">Nächste Note:</div>
-        <div class="target-note" id="songTargetNote">—</div>
-        <div class="target-hint" id="songTargetHint"></div>
-        <div class="staff-container" id="songStaff"></div>
+      <div class="song-notes-display" id="songStaffDisplay"></div>
+      <div class="song-current-info" id="songTargetSection">
+        <span class="current-label">Nächste Note:</span>
+        <span class="current-note" id="songTargetNote">—</span>
+        <span class="current-hint" id="songTargetHint"></span>
       </div>
       <div class="song-detected-section">
         <div class="label">Erkannt:</div>
@@ -1774,21 +1734,104 @@ function selectSong(idx) {
 
 function renderSongNotes() {
   const song = SONGS[songState.currentSong];
-  const row = document.getElementById('songNotesRow');
-  row.innerHTML = song.notes.map((note, i) => {
-    let cls = 'song-note';
-    if (i < songState.currentIndex) cls += ' played';
-    else if (i === songState.currentIndex) cls += ' current';
-    else cls += ' upcoming';
-    return `<div class="${cls}" data-idx="${i}">${note.replace(/(\d)$/, '<sub>$1</sub>')}</div>`;
-  }).join('');
+  const container = document.getElementById('songStaffDisplay');
+  const notes = song.midi;
+  const n = notes.length;
 
-  // Scroll current note into view
-  const currentEl = row.querySelector('.current');
-  if (currentEl) currentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  const DIATONIC = [0,0,1,1,2,3,3,4,4,5,5,6];
+  const IS_SHARP = [0,1,0,1,0,0,1,0,1,0,1,0];
+  const LS = 9;
+  const HS = LS / 2;
+  const W = 500;
+  const clefW = 36;
+  const noteSpacing = 34;
+  const mx = 10;
+  const usable = W - clefW - mx * 2;
+  const perLine = Math.floor(usable / noteSpacing);
+  const numLines = Math.ceil(n / perLine);
+  const sysHeight = 10 * LS; // height per staff system
+  const H = numLines * sysHeight + 8;
+
+  let svg = '';
+
+  for (let line = 0; line < numLines; line++) {
+    const si = line * perLine;
+    const ei = Math.min(si + perLine, n);
+    const sTop = line * sysHeight + 18;
+    const sBot = sTop + 4 * LS;
+
+    // Staff lines
+    for (let j = 0; j < 5; j++) {
+      const y = sTop + j * LS;
+      svg += `<line x1="${mx}" y1="${y}" x2="${W - mx}" y2="${y}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
+    }
+
+    // Clef
+    svg += `<text x="${mx + 13}" y="${sTop + 2 * LS + 1}" font-size="30" fill="var(--text-dim)" text-anchor="middle" dominant-baseline="central" font-family="serif">𝄞</text>`;
+    svg += `<text x="${mx + 13}" y="${sBot + 8}" font-size="7" fill="var(--text-muted)" text-anchor="middle">8</text>`;
+
+    // Notes
+    for (let i = si; i < ei; i++) {
+      const midi = notes[i];
+      const dm = midi + 12;
+      const nio = dm % 12;
+      const oct = Math.floor(dm / 12) - 1;
+      const pos = (oct - 4) * 7 + DIATONIC[nio] - 2;
+      const sharp = IS_SHARP[nio];
+      const noteIdx = i - si;
+      const nx = clefW + mx + noteIdx * noteSpacing + noteSpacing / 2;
+      const ny = sBot - pos * HS;
+
+      // Colors
+      const played = i < songState.currentIndex;
+      const current = i === songState.currentIndex;
+      const color = played ? 'var(--green)' : current ? 'var(--amber-bright)' : 'var(--text-muted)';
+      const opacity = current ? 1 : played ? 0.9 : 0.4;
+
+      // Ledger lines
+      for (let p = -2; p >= pos; p -= 2) {
+        const ly = sBot - p * HS;
+        svg += `<line x1="${nx - 8}" y1="${ly}" x2="${nx + 8}" y2="${ly}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
+      }
+      for (let p = 10; p <= pos; p += 2) {
+        const ly = sBot - p * HS;
+        svg += `<line x1="${nx - 8}" y1="${ly}" x2="${nx + 8}" y2="${ly}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
+      }
+
+      // Sharp
+      if (sharp) {
+        svg += `<text x="${nx - 10}" y="${ny + 1}" font-size="10" fill="${color}" opacity="${opacity}" text-anchor="middle" dominant-baseline="central">♯</text>`;
+      }
+
+      // Current note glow
+      if (current) {
+        svg += `<ellipse cx="${nx}" cy="${ny}" rx="12" ry="10" fill="var(--amber-glow)" opacity="0.6"/>`;
+      }
+
+      // Note head
+      svg += `<ellipse cx="${nx}" cy="${ny}" rx="4.8" ry="3.5" fill="${color}" opacity="${opacity}" transform="rotate(-15,${nx},${ny})"/>`;
+
+      // Stem
+      const stemUp = pos < 4;
+      const sx = stemUp ? nx + 4.3 : nx - 4.3;
+      const stemLen = 22;
+      const sy2 = stemUp ? ny - stemLen : ny + stemLen;
+      svg += `<line x1="${sx}" y1="${ny}" x2="${sx}" y2="${sy2}" stroke="${color}" stroke-width="1" opacity="${opacity * 0.8}"/>`;
+    }
+  }
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+
+  // Scroll current note's staff line into view
+  if (songState.currentIndex < n) {
+    const currentLine = Math.floor(songState.currentIndex / perLine);
+    const scrollTarget = (currentLine * sysHeight / H) * container.scrollHeight;
+    const viewMid = scrollTarget - container.clientHeight / 2 + sysHeight;
+    container.scrollTo({ top: Math.max(0, viewMid), behavior: 'smooth' });
+  }
 
   // Progress bar
-  const pct = (songState.currentIndex / song.notes.length) * 100;
+  const pct = (songState.currentIndex / n) * 100;
   document.getElementById('songProgressFill').style.width = pct + '%';
 }
 
@@ -1807,7 +1850,6 @@ function updateSongTarget() {
   const positions = getFretPositions(midi);
   const hint = positions.map(p => `${p.stringName} Bund ${p.fret}`).join(' · ');
   document.getElementById('songTargetHint').textContent = hint;
-  renderStaffNote('songStaff', midi);
 
   document.getElementById('songDetected').textContent = '—';
   document.getElementById('songDetected').className = 'detected-note';
