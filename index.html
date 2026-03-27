@@ -1453,8 +1453,8 @@ function updateBeginnerScores() {
 }
 
 // ========== ADVANCED GAME ==========
-const GUITAR_RANGE_LOW = 40; // E2
-const GUITAR_RANGE_HIGH = 88; // E6
+const GUITAR_RANGE_LOW = 40; // E2 (open 6th string)
+const GUITAR_RANGE_HIGH = 67; // G4 (3rd fret, 1st string) — comfortable first-position range
 
 function getFretPositions(midi, maxResults = 2) {
   const positions = [];
@@ -1479,7 +1479,7 @@ function newAdvancedTarget() {
 
   const info = noteFromMidi(midi);
   const noteName = `${info.name}${info.octave}`;
-  document.getElementById('advancedTarget').textContent = noteName;
+  document.getElementById('advancedTarget').textContent = info.name;
   document.getElementById('advancedTargetSub').textContent = `${freqFromMidi(midi).toFixed(1)} Hz`;
 
   const positions = getFretPositions(midi);
