@@ -1789,13 +1789,14 @@ function renderSongNotes() {
     ls = le;
   }
 
-  const sysH = 11 * LS;
-  const H = lines.length * sysH + 8;
+  const padTop = 45;
+  const sysH = 14 * LS;
+  const H = lines.length * sysH + padTop + 10;
   let svg = '';
 
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
-    const sTop = li * sysH + 20;
+    const sTop = li * sysH + padTop;
     const sBot = sTop + 4 * LS;
     const scale = usable / line.width;
 
