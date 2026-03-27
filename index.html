@@ -1352,8 +1352,8 @@ function renderStaffNote(containerId, midi) {
 
   // Treble clef with 8 below
   const clefY = sTop + 2 * LS + o;
-  s += `<text x="24" y="${clefY + 1}" font-size="38" fill="var(--text-dim)" text-anchor="middle" dominant-baseline="central" font-family="'Instrument Serif', Georgia, serif">𝄞</text>`;
-  s += `<text x="24" y="${sBot + o + 12}" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="'DM Sans', sans-serif">8</text>`;
+  s += `<text x="24" y="${clefY + 2}" font-size="48" fill="var(--text-dim)" text-anchor="middle" dominant-baseline="central" font-family="'Instrument Serif', Georgia, serif">𝄞</text>`;
+  s += `<text x="24" y="${sBot + o + 14}" font-size="11" fill="var(--text-muted)" text-anchor="middle" font-family="'DM Sans', sans-serif">8</text>`;
 
   // Ledger lines below staff
   for (let p = -2; p >= pos; p -= 2) {
@@ -1632,68 +1632,74 @@ function noteNameToMidi(name) {
 
 // Note format: 'C4' (quarter default) or 'C4/2' (half), 'C4/8' (eighth), etc.
 // Duration values: 1=whole, 2=half, 4=quarter, 8=eighth, 16=sixteenth
+// beatsPerBar: beats per measure (default 4 for 4/4 time)
 const SONGS = [
   {
     title: 'Alle meine Entchen',
     difficulty: 'Sehr leicht',
     icon: '🐤',
+    beatsPerBar: 4,
     notes: 'C4 D4 E4 F4 G4/2 G4/2 A4 A4 A4 A4 G4/1 A4 A4 A4 A4 G4/1 F4 F4 F4 F4 E4/2 E4/2 D4 D4 D4 D4 C4/1'.split(' ')
   },
   {
     title: 'Hänschen klein',
     difficulty: 'Sehr leicht',
     icon: '🎒',
+    beatsPerBar: 4,
     notes: 'G4 E4 E4/2 F4 D4 D4/2 C4 D4 E4 F4 G4 G4 G4/2 G4 E4 E4/2 F4 D4 D4/2 C4 E4 G4/2 C4/1'.split(' ')
   },
   {
     title: 'Ode an die Freude',
     difficulty: 'Leicht',
     icon: '🎵',
+    beatsPerBar: 4,
     notes: 'E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4/2 D4/2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4/2 C4/2'.split(' ')
   },
   {
     title: 'Smoke on the Water',
     difficulty: 'Leicht',
     icon: '🔥',
+    beatsPerBar: 4,
     notes: 'G3/8 Bb3/8 C4/2 G3/8 Bb3/8 Db4/8 C4/2 G3/8 Bb3/8 C4 Bb3/8 G3/2'.split(' ')
   },
   {
     title: 'Seven Nation Army',
     difficulty: 'Leicht',
     icon: '⚡',
+    beatsPerBar: 4,
     notes: 'E3 E3/8 G3 E3/8 D3/8 C3 B2/1 E3 E3/8 G3 E3/8 D3 C3/8 D3/8 C3/8 B2/1'.split(' ')
   },
   {
     title: 'Come As You Are',
     difficulty: 'Mittel',
     icon: '🎸',
+    beatsPerBar: 4,
     notes: 'E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 A3 A3 A3/2'.split(' ')
   },
   {
     title: 'Für Elise (Anfang)',
     difficulty: 'Mittel',
     icon: '🎹',
+    beatsPerBar: 3,
     notes: 'E5/8 D#5/8 E5/8 D#5/8 E5/8 B4/8 D5/8 C5/8 A4 C4/8 E4/8 A4/8 B4 E4/8 G#4/8 B4/8 C5/2'.split(' ')
   },
   {
     title: 'Bruder Jakob',
     difficulty: 'Leicht',
     icon: '🔔',
+    beatsPerBar: 4,
     notes: 'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4/2 E4 F4 G4/2 G4/8 A4/8 G4/8 F4/8 E4 C4 G4/8 A4/8 G4/8 F4/8 E4 C4 C4 G3 C4/2 C4 G3 C4/2'.split(' ')
   },
   {
     title: 'Allgäuer Landler',
     difficulty: 'Mittel',
     icon: '🏔️',
-    // 3/4 Takt, G-Dur — traditionelle Landler-Melodie
+    beatsPerBar: 3,
     notes: [
-      // Teil A
       'D4/2', 'D4', 'G4/2', 'B4',  'A4', 'G4', 'A4',  'B4/2', 'D4',
       'D4/2', 'D4', 'G4/2', 'B4',  'A4', 'B4', 'A4',  'G4/2', 'G4',
-      // Teil B
       'B4', 'A4', 'G4',  'A4', 'G4', 'E4',  'D4', 'E4', 'G4',  'A4/2', 'D4',
       'B4', 'A4', 'G4',  'A4', 'G4', 'E4',  'D4', 'G4', 'E4',  'D4/2', 'D4',
-      // Teil A (Wiederholung)
       'D4/2', 'D4', 'G4/2', 'B4',  'A4', 'G4', 'A4',  'B4/2', 'D4',
       'D4/2', 'D4', 'G4/2', 'B4',  'A4', 'B4', 'A4',  'G4/2',
     ]
@@ -1823,12 +1829,13 @@ function renderSongNotes() {
       svg += `<line x1="${mx}" y1="${y}" x2="${W - mx}" y2="${y}" stroke="var(--text-muted)" stroke-width="0.6"/>`;
     }
     // Clef
-    svg += `<text x="${mx + 13}" y="${sTop + 2 * LS + 1}" font-size="30" fill="var(--text-dim)" text-anchor="middle" dominant-baseline="central" font-family="serif">𝄞</text>`;
-    svg += `<text x="${mx + 13}" y="${sBot + 8}" font-size="7" fill="var(--text-muted)" text-anchor="middle">8</text>`;
+    svg += `<text x="${mx + 14}" y="${sTop + 2.5 * LS}" font-size="42" fill="var(--text-dim)" text-anchor="middle" dominant-baseline="central" font-family="serif">𝄞</text>`;
+    svg += `<text x="${mx + 14}" y="${sBot + 10}" font-size="9" fill="var(--text-muted)" text-anchor="middle">8</text>`;
 
     // Compute x positions
     let xAcc = 0;
     const ln = []; // line notes with positions
+    const beatsPerBar = song.beatsPerBar || 4;
     for (let i = line.start; i < line.end; i++) {
       const ni = allNotes[i];
       const w = durSpace(ni.dur) * baseUnit;
@@ -1839,6 +1846,26 @@ function renderSongNotes() {
       const stemEnd = stemUp ? ny - stemLen : ny + stemLen;
       ln.push({ ...ni, nx, ny, stemUp, sx, stemEnd });
       xAcc += w;
+    }
+
+    // Draw bar lines
+    let beatAcc = 0;
+    // Calculate cumulative beats for notes before this line
+    for (let i = 0; i < line.start; i++) {
+      beatAcc += 4 / allNotes[i].dur;
+    }
+    beatAcc = beatAcc % beatsPerBar; // position within current bar
+    for (let i = 0; i < ln.length; i++) {
+      const noteBeat = 4 / ln[i].dur;
+      beatAcc += noteBeat;
+      // Bar line after this note if we've completed a bar and there's a next note
+      if (Math.abs(beatAcc - beatsPerBar) < 0.01 || beatAcc >= beatsPerBar) {
+        beatAcc -= beatsPerBar;
+        if (i < ln.length - 1) {
+          const bx = (ln[i].nx + ln[i + 1].nx) / 2;
+          svg += `<line x1="${bx}" y1="${sTop}" x2="${bx}" y2="${sBot}" stroke="var(--text-muted)" stroke-width="0.7" opacity="0.5"/>`;
+        }
+      }
     }
 
     // Find beam groups (consecutive eighth or sixteenth notes)
