@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guitar Trainer</title>
+<title>Saiten Trainer</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta property="og:title" content="Guitar Trainer">
 <meta property="og:description" content="Stimmgerät, Saiten- & Noten-Spiel und Lieder zum Nachspielen — direkt im Browser.">
@@ -81,6 +81,37 @@ body::before {
   color: var(--amber);
   letter-spacing: 0.02em;
   font-weight: 400;
+}
+
+/* Instrument select */
+.instrument-select {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.instrument-btn {
+  padding: 5px 16px;
+  border: 1px solid rgba(212, 160, 74, 0.15);
+  border-radius: 20px;
+  background: none;
+  color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.instrument-btn:hover {
+  color: var(--text-dim);
+  border-color: var(--amber-dim);
+}
+
+.instrument-btn.active {
+  color: var(--amber);
+  border-color: var(--amber);
+  background: rgba(212, 160, 74, 0.08);
 }
 
 /* Tabs */
@@ -332,7 +363,7 @@ body::before {
 /* String references */
 .strings-ref {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
   gap: 6px;
   margin-top: 24px;
 }
@@ -923,7 +954,11 @@ body::before {
 <body>
 <div class="app">
   <div class="header">
-    <h1>Guitar Trainer</h1>
+    <h1 id="appTitle">Guitar Trainer</h1>
+    <div class="instrument-select">
+      <button class="instrument-btn active" data-instrument="guitar">Gitarre</button>
+      <button class="instrument-btn" data-instrument="zither">Zither</button>
+    </div>
   </div>
 
   <div class="tabs">
@@ -1105,15 +1140,41 @@ let sensitivity = 11;
 const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'H'];
 const NOTE_NAMES_FLAT = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B', 'H'];
 
-// Guitar open strings (standard tuning)
-const GUITAR_STRINGS = [
-  { name: 'E', octave: 2, label: '6. Saite', midi: 40 },
-  { name: 'A', octave: 2, label: '5. Saite', midi: 45 },
-  { name: 'D', octave: 3, label: '4. Saite', midi: 50 },
-  { name: 'G', octave: 3, label: '3. Saite', midi: 55 },
-  { name: 'H', octave: 3, label: '2. Saite', midi: 59 },
-  { name: 'E', octave: 4, label: '1. Saite', midi: 64 },
-];
+// Instrument configurations
+const INSTRUMENTS = {
+  guitar: {
+    name: 'Guitar Trainer',
+    strings: [
+      { name: 'E', octave: 2, label: '6. Saite', midi: 40 },
+      { name: 'A', octave: 2, label: '5. Saite', midi: 45 },
+      { name: 'D', octave: 3, label: '4. Saite', midi: 50 },
+      { name: 'G', octave: 3, label: '3. Saite', midi: 55 },
+      { name: 'H', octave: 3, label: '2. Saite', midi: 59 },
+      { name: 'E', octave: 4, label: '1. Saite', midi: 64 },
+    ],
+    maxFret: 12,
+    rangeLow: 40,  // E2
+    rangeHigh: 67,  // G4
+  },
+  zither: {
+    name: 'Zither Trainer',
+    strings: [
+      { name: 'C', octave: 3, label: '5. Saite', midi: 48 },
+      { name: 'D', octave: 3, label: '4. Saite (Hintersaite)', midi: 50 },
+      { name: 'G', octave: 3, label: '3. Saite', midi: 55 },
+      { name: 'A', octave: 3, label: '2. Saite', midi: 57 },
+      { name: 'A', octave: 4, label: '1. Saite (Schlagsaite)', midi: 69 },
+    ],
+    maxFret: 29,
+    rangeLow: 48,  // C3
+    rangeHigh: 76,  // E5
+  }
+};
+
+let currentInstrument = 'guitar';
+function getInstrument() { return INSTRUMENTS[currentInstrument]; }
+// Legacy alias used throughout the code
+function getStrings() { return getInstrument().strings; }
 
 // ========== STATE ==========
 let audioCtx, analyser, mediaStream, dataBuffer, rafId;
@@ -1290,7 +1351,7 @@ function updateTuner(freq, info) {
 
   // Highlight matching string
   document.querySelectorAll('.string-ref').forEach((el, i) => {
-    const s = GUITAR_STRINGS[i];
+    const s = getStrings()[i];
     const diff = Math.abs(info.midi - s.midi);
     el.classList.toggle('highlight', diff === 0 && Math.abs(info.cents) > 5);
     el.classList.toggle('in-tune', diff === 0 && Math.abs(info.cents) <= 5);
@@ -1299,7 +1360,7 @@ function updateTuner(freq, info) {
 
 function buildStringsRef() {
   const container = document.getElementById('stringsRef');
-  container.innerHTML = GUITAR_STRINGS.map(s => {
+  container.innerHTML = getStrings().map(s => {
     const freq = freqFromMidi(s.midi).toFixed(1);
     return `<div class="string-ref">
       <div class="sname">${s.name}${s.octave}</div>
@@ -1389,9 +1450,9 @@ function renderStaffNote(containerId, midi) {
 function newBeginnerTarget() {
   const gs = gameState.beginner;
   let idx;
-  do { idx = Math.floor(Math.random() * GUITAR_STRINGS.length); }
-  while (gs.target && gs.target.midi === GUITAR_STRINGS[idx].midi);
-  gs.target = GUITAR_STRINGS[idx];
+  do { idx = Math.floor(Math.random() * getStrings().length); }
+  while (gs.target && gs.target.midi === getStrings()[idx].midi);
+  gs.target = getStrings()[idx];
   gs.waiting = true;
   gs.cooldown = false;
 
@@ -1453,14 +1514,12 @@ function updateBeginnerScores() {
 }
 
 // ========== ADVANCED GAME ==========
-const GUITAR_RANGE_LOW = 40; // E2 (open 6th string)
-const GUITAR_RANGE_HIGH = 67; // G4 (3rd fret, 1st string) — comfortable first-position range
 
 function getFretPositions(midi, maxResults = 2) {
   const positions = [];
-  GUITAR_STRINGS.forEach(s => {
+  getStrings().forEach(s => {
     const fret = midi - s.midi;
-    if (fret >= 0 && fret <= 24) {
+    if (fret >= 0 && fret <= getInstrument().maxFret) {
       positions.push({ string: s.label, fret, stringName: s.name + s.octave });
     }
   });
@@ -1471,7 +1530,8 @@ function getFretPositions(midi, maxResults = 2) {
 function newAdvancedTarget() {
   const gs = gameState.advanced;
   let midi;
-  do { midi = GUITAR_RANGE_LOW + Math.floor(Math.random() * (GUITAR_RANGE_HIGH - GUITAR_RANGE_LOW + 1)); }
+  const inst = getInstrument();
+  do { midi = inst.rangeLow + Math.floor(Math.random() * (inst.rangeHigh - inst.rangeLow + 1)); }
   while (gs.target && gs.target === midi);
   gs.target = midi;
   gs.waiting = true;
@@ -2155,6 +2215,38 @@ document.getElementById('a4Slider').addEventListener('input', e => {
 document.getElementById('sensitivitySlider').addEventListener('input', e => {
   sensitivity = parseInt(e.target.value);
   document.getElementById('sensitivityValue').textContent = sensitivity;
+});
+
+// ========== INSTRUMENT SWITCHING ==========
+function switchInstrument(id) {
+  currentInstrument = id;
+  document.querySelectorAll('.instrument-btn').forEach(b => b.classList.toggle('active', b.dataset.instrument === id));
+  document.getElementById('appTitle').textContent = getInstrument().name;
+
+  // Rebuild tuner strings
+  buildStringsRef();
+
+  // Reset games
+  Object.assign(gameState.beginner, { correct: 0, total: 0, streak: 0, target: null });
+  Object.assign(gameState.advanced, { correct: 0, total: 0, streak: 0, target: null });
+  document.getElementById('beginnerCorrect').textContent = '0';
+  document.getElementById('beginnerTotal').textContent = '0';
+  document.getElementById('beginnerStreak').textContent = '0';
+  document.getElementById('advancedCorrect').textContent = '0';
+  document.getElementById('advancedTotal').textContent = '0';
+  document.getElementById('advancedStreak').textContent = '0';
+
+  // Rebuild song list
+  document.getElementById('songSelect').innerHTML = '';
+  buildSongSelect();
+
+  // Refresh current tab
+  if (currentTab === 'beginner') newBeginnerTarget();
+  if (currentTab === 'advanced') newAdvancedTarget();
+}
+
+document.querySelectorAll('.instrument-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchInstrument(btn.dataset.instrument));
 });
 
 // ========== INIT ==========
