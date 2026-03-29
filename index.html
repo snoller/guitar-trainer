@@ -933,6 +933,20 @@ body::before {
   line-height: 1.6;
 }
 
+/* String groups (zither) */
+.strings-group-label {
+  grid-column: 1 / -1;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 0 2px;
+}
+
+.strings-group-label:first-child {
+  padding-top: 0;
+}
+
 /* ---- STAFF NOTATION ---- */
 .staff-container {
   display: flex;
@@ -1159,11 +1173,41 @@ const INSTRUMENTS = {
   zither: {
     name: 'Zither Trainer',
     strings: [
-      { name: 'C', octave: 3, label: '5. Saite', midi: 48 },
-      { name: 'D', octave: 3, label: '4. Saite (Hintersaite)', midi: 50 },
-      { name: 'G', octave: 3, label: '3. Saite', midi: 55 },
-      { name: 'A', octave: 3, label: '2. Saite', midi: 57 },
-      { name: 'A', octave: 4, label: '1. Saite (Schlagsaite)', midi: 69 },
+      // Melodiesaiten (Griffbrett)
+      { name: 'C', octave: 3, label: '5. Melodie', midi: 48, group: 'Melodiesaiten' },
+      { name: 'D', octave: 3, label: '4. Melodie', midi: 50, group: 'Melodiesaiten' },
+      { name: 'G', octave: 3, label: '3. Melodie', midi: 55, group: 'Melodiesaiten' },
+      { name: 'A', octave: 3, label: '2. Melodie', midi: 57, group: 'Melodiesaiten' },
+      { name: 'A', octave: 4, label: '1. Melodie', midi: 69, group: 'Melodiesaiten' },
+    ],
+    // Begleit- und Basssaiten (Freisaiten, Quintenstimmung)
+    freeStrings: [
+      // Begleitsaiten
+      { name: 'E♭', octave: 3, midi: 51, group: 'Begleitsaiten' },
+      { name: 'B',  octave: 2, midi: 46, group: 'Begleitsaiten' },
+      { name: 'F',  octave: 3, midi: 53, group: 'Begleitsaiten' },
+      { name: 'C',  octave: 3, midi: 48, group: 'Begleitsaiten' },
+      { name: 'G',  octave: 3, midi: 55, group: 'Begleitsaiten' },
+      { name: 'D',  octave: 3, midi: 50, group: 'Begleitsaiten' },
+      { name: 'A',  octave: 3, midi: 57, group: 'Begleitsaiten' },
+      { name: 'E',  octave: 3, midi: 52, group: 'Begleitsaiten' },
+      { name: 'H',  octave: 2, midi: 47, group: 'Begleitsaiten' },
+      { name: 'F♯', octave: 3, midi: 54, group: 'Begleitsaiten' },
+      { name: 'C♯', octave: 3, midi: 49, group: 'Begleitsaiten' },
+      { name: 'G♯', octave: 2, midi: 44, group: 'Begleitsaiten' },
+      // Basssaiten (eine Oktave tiefer)
+      { name: 'E♭', octave: 2, midi: 39, group: 'Basssaiten' },
+      { name: 'B',  octave: 1, midi: 34, group: 'Basssaiten' },
+      { name: 'F',  octave: 2, midi: 41, group: 'Basssaiten' },
+      { name: 'C',  octave: 2, midi: 36, group: 'Basssaiten' },
+      { name: 'G',  octave: 2, midi: 43, group: 'Basssaiten' },
+      { name: 'D',  octave: 2, midi: 38, group: 'Basssaiten' },
+      { name: 'A',  octave: 1, midi: 33, group: 'Basssaiten' },
+      { name: 'E',  octave: 2, midi: 40, group: 'Basssaiten' },
+      { name: 'H',  octave: 1, midi: 35, group: 'Basssaiten' },
+      { name: 'F♯', octave: 2, midi: 42, group: 'Basssaiten' },
+      { name: 'C♯', octave: 2, midi: 37, group: 'Basssaiten' },
+      { name: 'G♯', octave: 1, midi: 32, group: 'Basssaiten' },
     ],
     maxFret: 29,
     rangeLow: 48,  // C3
@@ -1350,9 +1394,9 @@ function updateTuner(freq, info) {
   document.getElementById('centsDisplay').textContent = `${sign}${info.cents} ¢`;
 
   // Highlight matching string
-  document.querySelectorAll('.string-ref').forEach((el, i) => {
-    const s = getStrings()[i];
-    const diff = Math.abs(info.midi - s.midi);
+  document.querySelectorAll('.string-ref[data-midi]').forEach(el => {
+    const midi = parseInt(el.dataset.midi);
+    const diff = Math.abs(info.midi - midi);
     el.classList.toggle('highlight', diff === 0 && Math.abs(info.cents) > 5);
     el.classList.toggle('in-tune', diff === 0 && Math.abs(info.cents) <= 5);
   });
@@ -1360,14 +1404,41 @@ function updateTuner(freq, info) {
 
 function buildStringsRef() {
   const container = document.getElementById('stringsRef');
-  container.innerHTML = getStrings().map(s => {
-    const freq = freqFromMidi(s.midi).toFixed(1);
-    return `<div class="string-ref">
-      <div class="sname">${s.name}${s.octave}</div>
-      <div class="sfreq">${freq} Hz</div>
-      <div class="slabel">${s.label}</div>
-    </div>`;
-  }).join('');
+  const inst = getInstrument();
+  const allStrings = [...inst.strings];
+
+  // For zither, add free strings grouped
+  if (inst.freeStrings) {
+    allStrings.push(...inst.freeStrings);
+  }
+
+  // Group strings
+  const groups = [];
+  let currentGroup = null;
+  for (const s of allStrings) {
+    const g = s.group || '';
+    if (g !== currentGroup) {
+      groups.push({ label: g, strings: [] });
+      currentGroup = g;
+    }
+    groups[groups.length - 1].strings.push(s);
+  }
+
+  let html = '';
+  for (const group of groups) {
+    if (group.label) {
+      html += `<div class="strings-group-label">${group.label}</div>`;
+    }
+    html += group.strings.map(s => {
+      const freq = freqFromMidi(s.midi).toFixed(1);
+      return `<div class="string-ref" data-midi="${s.midi}">
+        <div class="sname">${s.name}${s.octave}</div>
+        <div class="sfreq">${freq} Hz</div>
+        ${s.label ? `<div class="slabel">${s.label}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  container.innerHTML = html;
 }
 
 // ========== STAFF NOTATION ==========
@@ -1694,10 +1765,12 @@ function noteNameToMidi(name) {
 // Duration values: 1=whole, 2=half, 4=quarter, 8=eighth, 16=sixteenth
 // beatsPerBar: beats per measure (default 4 for 4/4 time)
 const SONGS = [
+  // --- Beide Instrumente ---
   {
     title: 'Alle meine Entchen',
     difficulty: 'Sehr leicht',
     icon: '🐤',
+    instruments: ['guitar', 'zither'],
     beatsPerBar: 4,
     notes: 'C4 D4 E4 F4 G4/2 G4/2 A4 A4 A4 A4 G4/1 A4 A4 A4 A4 G4/1 F4 F4 F4 F4 E4/2 E4/2 D4 D4 D4 D4 C4/1'.split(' ')
   },
@@ -1705,6 +1778,7 @@ const SONGS = [
     title: 'Hänschen klein',
     difficulty: 'Sehr leicht',
     icon: '🎒',
+    instruments: ['guitar', 'zither'],
     beatsPerBar: 4,
     notes: 'G4 E4 E4/2 F4 D4 D4/2 C4 D4 E4 F4 G4 G4 G4/2 G4 E4 E4/2 F4 D4 D4/2 C4 E4 G4/2 C4/1'.split(' ')
   },
@@ -1712,48 +1786,31 @@ const SONGS = [
     title: 'Ode an die Freude',
     difficulty: 'Leicht',
     icon: '🎵',
+    instruments: ['guitar', 'zither'],
     beatsPerBar: 4,
     notes: 'E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4/2 D4/2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4/2 C4/2'.split(' ')
-  },
-  {
-    title: 'Smoke on the Water',
-    difficulty: 'Leicht',
-    icon: '🔥',
-    beatsPerBar: 4,
-    notes: 'G3/8 Bb3/8 C4/2 G3/8 Bb3/8 Db4/8 C4/2 G3/8 Bb3/8 C4 Bb3/8 G3/2'.split(' ')
-  },
-  {
-    title: 'Seven Nation Army',
-    difficulty: 'Leicht',
-    icon: '⚡',
-    beatsPerBar: 4,
-    notes: 'E3 E3/8 G3 E3/8 D3/8 C3 B2/1 E3 E3/8 G3 E3/8 D3 C3/8 D3/8 C3/8 B2/1'.split(' ')
-  },
-  {
-    title: 'Come As You Are',
-    difficulty: 'Mittel',
-    icon: '🎸',
-    beatsPerBar: 4,
-    notes: 'E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 A3 A3 A3/2'.split(' ')
-  },
-  {
-    title: 'Für Elise (Anfang)',
-    difficulty: 'Mittel',
-    icon: '🎹',
-    beatsPerBar: 3,
-    notes: 'E5/8 D#5/8 E5/8 D#5/8 E5/8 B4/8 D5/8 C5/8 A4 C4/8 E4/8 A4/8 B4 E4/8 G#4/8 B4/8 C5/2'.split(' ')
   },
   {
     title: 'Bruder Jakob',
     difficulty: 'Leicht',
     icon: '🔔',
+    instruments: ['guitar', 'zither'],
     beatsPerBar: 4,
     notes: 'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4/2 E4 F4 G4/2 G4/8 A4/8 G4/8 F4/8 E4 C4 G4/8 A4/8 G4/8 F4/8 E4 C4 C4 G3 C4/2 C4 G3 C4/2'.split(' ')
+  },
+  {
+    title: 'Für Elise (Anfang)',
+    difficulty: 'Mittel',
+    icon: '🎹',
+    instruments: ['guitar', 'zither'],
+    beatsPerBar: 3,
+    notes: 'E5/8 D#5/8 E5/8 D#5/8 E5/8 B4/8 D5/8 C5/8 A4 C4/8 E4/8 A4/8 B4 E4/8 G#4/8 B4/8 C5/2'.split(' ')
   },
   {
     title: 'Allgäuer Landler',
     difficulty: 'Mittel',
     icon: '🏔️',
+    instruments: ['guitar', 'zither'],
     beatsPerBar: 3,
     notes: [
       'D4/2', 'D4', 'G4/2', 'B4',  'A4', 'G4', 'A4',  'B4/2', 'D4',
@@ -1762,6 +1819,61 @@ const SONGS = [
       'B4', 'A4', 'G4',  'A4', 'G4', 'E4',  'D4', 'G4', 'E4',  'D4/2', 'D4',
       'D4/2', 'D4', 'G4/2', 'B4',  'A4', 'G4', 'A4',  'B4/2', 'D4',
       'D4/2', 'D4', 'G4/2', 'B4',  'A4', 'B4', 'A4',  'G4/2',
+    ]
+  },
+  // --- Nur Gitarre ---
+  {
+    title: 'Smoke on the Water',
+    difficulty: 'Leicht',
+    icon: '🔥',
+    instruments: ['guitar'],
+    beatsPerBar: 4,
+    notes: 'G3/8 Bb3/8 C4/2 G3/8 Bb3/8 Db4/8 C4/2 G3/8 Bb3/8 C4 Bb3/8 G3/2'.split(' ')
+  },
+  {
+    title: 'Seven Nation Army',
+    difficulty: 'Leicht',
+    icon: '⚡',
+    instruments: ['guitar'],
+    beatsPerBar: 4,
+    notes: 'E3 E3/8 G3 E3/8 D3/8 C3 B2/1 E3 E3/8 G3 E3/8 D3 C3/8 D3/8 C3/8 B2/1'.split(' ')
+  },
+  {
+    title: 'Come As You Are',
+    difficulty: 'Mittel',
+    icon: '🎸',
+    instruments: ['guitar'],
+    beatsPerBar: 4,
+    notes: 'E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 F#3/8 E3/8 F#3/8 G#3/8 A3/8 G#3/8 A3 A3 A3/2'.split(' ')
+  },
+  // --- Nur Zither ---
+  {
+    title: 'Kuckuckspolka',
+    difficulty: 'Leicht',
+    icon: '🐦',
+    instruments: ['zither'],
+    beatsPerBar: 4,
+    notes: 'G4 E4 E4/2 G4 E4 E4/2 D4 E4 F4 D4 C4 E4 G4/2 G4 E4 E4/2 G4 E4 E4/2 D4 F4 E4 D4 C4/1'.split(' ')
+  },
+  {
+    title: 'Ännchen von Tharau',
+    difficulty: 'Mittel',
+    icon: '🌸',
+    instruments: ['zither'],
+    beatsPerBar: 3,
+    notes: 'C4 C4 E4 G4/2 G4 A4/2 A4 G4/2 F4 E4/2 E4 D4/2 D4 C4/2 C4 C4 C4 E4 G4/2 G4 A4/2 A4 G4/2 F4 E4 D4/2 C4/1'.split(' ')
+  },
+  {
+    title: 'Drunt in der greana Au',
+    difficulty: 'Mittel',
+    icon: '🌿',
+    instruments: ['zither'],
+    beatsPerBar: 3,
+    notes: [
+      'D4/2', 'D4', 'F#4/2', 'D4', 'A4/2', 'F#4',
+      'D4/2', 'D4', 'F#4/2', 'D4', 'A4/2', 'A4',
+      'B4/2', 'A4', 'G4/2', 'F#4', 'E4/2', 'D4',
+      'A4/2', 'G4', 'F#4/2', 'E4', 'D4/2',
     ]
   },
 ];
@@ -1789,16 +1901,17 @@ const songState = {
 
 function buildSongSelect() {
   const container = document.getElementById('songSelect');
-  if (container.children.length > 0) return; // already built
-  container.innerHTML = SONGS.map((song, i) => `
-    <button class="song-btn" data-song="${i}">
+  container.innerHTML = SONGS.map((song, i) => {
+    const fits = !song.instruments || song.instruments.includes(currentInstrument);
+    if (!fits) return '';
+    return `<button class="song-btn" data-song="${i}">
       <span class="song-icon">${song.icon}</span>
       <div class="song-info">
         <div class="song-title">${song.title}</div>
         <div class="song-difficulty">${song.difficulty} · ${song.midi.length} Noten</div>
       </div>
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
 
   container.querySelectorAll('.song-btn').forEach(btn => {
     btn.addEventListener('click', () => selectSong(parseInt(btn.dataset.song)));
