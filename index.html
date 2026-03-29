@@ -1920,7 +1920,7 @@ function renderSongNotes() {
 
       // Current glow
       if (current) {
-        svg += `<ellipse cx="${nx}" cy="${ny}" rx="13" ry="10" fill="var(--amber-glow)" opacity="0.5"/>`;
+        svg += `<ellipse class="note-glow" cx="${nx}" cy="${ny}" rx="13" ry="10" fill="var(--amber-glow)" opacity="0.5"/>`;
       }
 
       // Note head
@@ -2018,6 +2018,9 @@ function updateSongTarget() {
 function updateSongNoteFast(prevIdx, newIdx) {
   const prev = document.getElementById('sn' + prevIdx);
   if (prev) {
+    // Remove glow first
+    const glow = prev.querySelector('.note-glow');
+    if (glow) glow.remove();
     // Mark as played (green)
     prev.querySelectorAll('ellipse, line, path, text').forEach(el => {
       if (el.getAttribute('fill') && el.getAttribute('fill') !== 'var(--bg-card)' && el.getAttribute('fill') !== 'none') {
@@ -2028,9 +2031,6 @@ function updateSongNoteFast(prevIdx, newIdx) {
       }
       el.setAttribute('opacity', '0.85');
     });
-    // Remove glow
-    const glow = prev.querySelector('ellipse[fill="var(--amber-glow)"]');
-    if (glow) glow.remove();
   }
 
   const curr = document.getElementById('sn' + newIdx);
